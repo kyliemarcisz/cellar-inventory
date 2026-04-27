@@ -2,3 +2,7 @@ name = "cellar-inventory"
 compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".open-next/assets"
+
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "https://wtlhaxjduboscewfwxkx.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_8SFRn0pHyCRKHO1aSpwoZg_rk0dL4L3"
