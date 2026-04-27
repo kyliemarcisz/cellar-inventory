@@ -18,10 +18,11 @@ export default function ArtisanPage() {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [menuContext, setMenuContext] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!shopLoading && shopId) loadPersonas()
+    if (!shopLoading && shopId) { loadPersonas(); loadMenu() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopLoading, shopId])
 
@@ -32,6 +33,12 @@ export default function ArtisanPage() {
     const { data } = await supabase.from('ai_personas').select('*').eq('shop_id', shopId).eq('is_active', true).order('sort_order')
     if (data && data.length > 0) { setPersonas(data as AIPersona[]); setActiveId(data[0].id) }
     setLoading(false)
+  }
+
+  async function loadMenu() {
+    if (!shopId) return
+    const { data } = await supabase.from('shops').select('menu_text').eq('id', shopId).single()
+    if (data?.menu_text) setMenuContext(data.menu_text)
   }
 
   function switchPersona(id: string) {
@@ -49,7 +56,7 @@ export default function ArtisanPage() {
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text.trim(), systemPrompt: persona.system_prompt }) })
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text.trim(), systemPrompt: persona.system_prompt, menuContext: menuContext || undefined }) })
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
       let done = false

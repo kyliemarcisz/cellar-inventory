@@ -4,17 +4,21 @@ import { NextRequest } from 'next/server'
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
-  const { message, systemPrompt } = await req.json()
+  const { message, systemPrompt, menuContext } = await req.json()
 
   if (!message || !systemPrompt) {
     return new Response('Invalid request', { status: 400 })
   }
 
+  const fullSystem = menuContext
+    ? `${systemPrompt}\n\n---\nCurrent menu & offerings at this restaurant:\n${menuContext}`
+    : systemPrompt
+
   const stream = client.messages.stream({
     model: 'claude-opus-4-7',
     max_tokens: 1024,
     thinking: { type: 'adaptive' },
-    system: systemPrompt,
+    system: fullSystem,
     messages: [{ role: 'user', content: message }],
   })
 
