@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Dancing_Script, Bebas_Neue, DM_Sans } from "next/font/google";
+import { Dancing_Script, Bebas_Neue, DM_Sans, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 
 const dancingScript = Dancing_Script({
@@ -19,6 +19,13 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
 });
 
+const cormorantGaramond = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
+  style: ["normal", "italic"],
+});
+
 export const metadata: Metadata = {
   title: "The Cellar — San Clemente",
   description: "Wine, Music, Great Food + A Coffee Bar.",
@@ -32,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dancingScript.variable} ${bebasNeue.variable} ${dmSans.variable} h-full antialiased`}
+      className={`${dancingScript.variable} ${bebasNeue.variable} ${dmSans.variable} ${cormorantGaramond.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

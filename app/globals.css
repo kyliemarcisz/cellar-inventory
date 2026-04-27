@@ -16,6 +16,15 @@
   --page-bg-gradient: rgba(58, 30, 12, 0);
   --on-wood: #C4A882;
   --on-wood-muted: #7A5C40;
+
+  /* Corner palette */
+  --corner-linen: #FAF8F4;
+  --corner-parchment: #F2EDE4;
+  --corner-sand: #E8DDD0;
+  --corner-gold: #C9A87C;
+  --corner-warm-gold: #D4AF7A;
+  --corner-stone: #B8A99A;
+  --corner-bark: #3B2A1A;
 }
 
 @theme inline {
@@ -42,4 +51,10 @@ body {
 .font-label {
   font-family: var(--font-bebas), sans-serif;
   letter-spacing: 0.08em;
+}
+
+/* Thin elegant serif — Corner branding, editorial headings */
+.font-serif {
+  font-family: var(--font-cormorant), 'Georgia', serif;
+  font-weight: 300;
 }
