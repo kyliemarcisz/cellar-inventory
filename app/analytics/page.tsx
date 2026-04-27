@@ -56,8 +56,8 @@ export default function AnalyticsPage() {
     }
 
     const [{ data: f }, { data: t }, { count }] = await Promise.all([flagQ, taskQ, pendingQ])
-    setFlags((f || []) as FlagRow[])
-    setTasks((t || []) as TaskRow[])
+    setFlags((f || []) as unknown as FlagRow[])
+    setTasks((t || []) as unknown as TaskRow[])
     setPendingNow(count || 0)
     setLoading(false)
   }
