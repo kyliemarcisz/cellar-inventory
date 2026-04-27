@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Category, Item } from '@/lib/supabase'
 import Link from 'next/link'
-import Image from 'next/image'
 
 type ItemWithCategory = Item & { category: Category }
 type Tab = 'order' | 'make'
@@ -38,7 +37,6 @@ export default function StaffPage() {
     if (cats) setCategories(cats)
     if (its) {
       setItems(its as ItemWithCategory[])
-      // Pre-flag weekly items on the order tab
       const weeklyIds = (its as ItemWithCategory[])
         .filter(i => i.is_weekly && i.can_order)
         .map(i => i.id)
@@ -103,12 +101,24 @@ export default function StaffPage() {
     return (
       <main className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--wine-dark)' }}>
         <div className="w-full max-w-sm">
-          <p className="font-display italic text-2xl mb-1" style={{ color: 'var(--gold)' }}>The Cellar</p>
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--cream)' }}>What&apos;s your name?</h1>
-          <p className="mb-8 text-sm" style={{ color: '#9A7A72' }}>So the owner knows who flagged it.</p>
+          <p className="font-serif text-base mb-1" style={{ color: 'var(--gold)', letterSpacing: '0.3em', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+            The Cellar
+          </p>
+          <h1 className="font-serif mb-2" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--cream)', lineHeight: 1.2 }}>
+            What&apos;s your name?
+          </h1>
+          <p className="text-sm mb-8" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+            So the owner knows who flagged it.
+          </p>
           <input
-            className="w-full rounded-2xl px-4 py-4 text-lg focus:outline-none"
-            style={{ background: 'var(--wine-mid)', border: '1px solid #4A2030', color: 'var(--cream)' }}
+            className="w-full px-4 py-4 text-base focus:outline-none"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(196,168,130,0.25)',
+              color: 'var(--cream)',
+              borderRadius: '4px',
+              fontFamily: 'var(--font-dm-sans)',
+            }}
             placeholder="Your name"
             value={staffName}
             onChange={e => setStaffName(e.target.value)}
@@ -117,10 +127,16 @@ export default function StaffPage() {
           />
           <button
             onClick={saveName}
-            className="mt-3 w-full py-4 rounded-2xl text-base font-semibold tracking-wide"
-            style={{ background: 'var(--wine)', color: 'var(--cream)' }}
+            className="mt-3 w-full py-4 text-sm tracking-widest uppercase"
+            style={{
+              background: 'var(--wine)',
+              color: 'var(--cream)',
+              borderRadius: '4px',
+              fontFamily: 'var(--font-dm-sans)',
+              letterSpacing: '0.2em',
+            }}
           >
-            Let&apos;s go
+            Enter
           </button>
         </div>
       </main>
@@ -130,7 +146,9 @@ export default function StaffPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cream)' }}>
-        <p style={{ color: 'var(--muted)' }}>Loading...</p>
+        <p className="font-serif" style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: '1.1rem' }}>
+          a moment...
+        </p>
       </main>
     )
   }
@@ -140,21 +158,34 @@ export default function StaffPage() {
       <main className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--cream)' }}>
         <div className="text-center">
           <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl"
-            style={{ background: submitted === 'order' ? 'var(--wine)' : 'var(--gold)', color: 'var(--cream)' }}
-          >✓</div>
-          <h2 className="font-display text-2xl font-bold italic" style={{ color: 'var(--text)' }}>
-            {submitted === 'order' ? 'Board updated!' : 'Kitchen notified!'}
+            className="w-14 h-14 flex items-center justify-center mx-auto mb-6 text-xl"
+            style={{
+              border: `1px solid ${submitted === 'order' ? 'var(--wine)' : 'var(--gold)'}`,
+              color: submitted === 'order' ? 'var(--wine)' : '#7A5A30',
+              borderRadius: '50%',
+            }}
+          >
+            ✓
+          </div>
+          <h2 className="font-serif" style={{ fontSize: '1.8rem', fontWeight: 300, color: 'var(--text)', letterSpacing: '0.01em' }}>
+            {submitted === 'order' ? 'Board updated.' : 'Kitchen notified.'}
           </h2>
-          <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
+          <p className="mt-2 text-sm" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
             {submitted === 'order' ? 'The owner has been notified.' : 'Task added to the kitchen queue.'}
           </p>
           <button
             onClick={() => setSubmitted(null)}
-            className="mt-8 px-8 py-3 rounded-2xl font-medium text-sm"
-            style={{ background: 'var(--wine)', color: 'var(--cream)' }}
+            className="mt-8 px-8 py-3 text-xs tracking-widest uppercase"
+            style={{
+              border: '1px solid var(--wine)',
+              color: 'var(--wine)',
+              background: 'transparent',
+              borderRadius: '4px',
+              fontFamily: 'var(--font-dm-sans)',
+              letterSpacing: '0.2em',
+            }}
           >
-            Flag more items
+            Flag more
           </button>
         </div>
       </main>
@@ -169,40 +200,48 @@ export default function StaffPage() {
     items: nonWeeklyItems.filter(i => i.category_id === cat.id),
   })).filter(g => g.items.length > 0)
 
-  const accentColor = tab === 'order' ? 'red' : 'amber'
+  const isOrder = tab === 'order'
+  const flaggedActiveBg = isOrder ? 'var(--wine)' : '#7A5A30'
+  const flaggedActiveText = 'var(--cream)'
+  const flaggedInputBg = isOrder ? 'var(--wine-mid)' : 'rgba(122,90,48,0.3)'
+  const flaggedInputBorder = isOrder ? 'rgba(196,168,130,0.2)' : 'rgba(196,168,130,0.3)'
 
   return (
     <main className="min-h-screen pb-36" style={{ background: 'var(--cream)' }}>
       {/* Header */}
-      <div className="sticky top-0 backdrop-blur border-b px-4 py-3 z-10"
-        style={{ background: 'rgba(247,241,232,0.95)', borderColor: 'var(--cream-dark)' }}>
+      <div
+        className="sticky top-0 backdrop-blur border-b px-4 py-3 z-10"
+        style={{ background: 'rgba(245,239,224,0.96)', borderColor: 'var(--cream-dark)' }}
+      >
         <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="flex items-center gap-2">
-              <Image src="/cellar-logo.svg" alt="The Cellar" width={36} height={19}
-                style={{ filter: 'brightness(0)', opacity: 0.7 }} />
-              <h1 className="font-display italic text-lg font-bold" style={{ color: 'var(--text)' }}>Inventory Board</h1>
-            </div>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Hey {staffName} 👋</p>
+            <h1 className="font-serif" style={{ fontSize: '1.4rem', fontWeight: 300, color: 'var(--text)', letterSpacing: '0.01em' }}>
+              Inventory Board
+            </h1>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.05em' }}>
+              {staffName}
+            </p>
           </div>
-          <Link href="/" className="text-sm" style={{ color: 'var(--muted)' }}>← Back</Link>
+          <Link href="/" className="text-xs tracking-widest uppercase" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>
+            ← Back
+          </Link>
         </div>
-        <div className="flex rounded-2xl overflow-hidden p-1 gap-1" style={{ background: 'var(--cream-dark)' }}>
+        <div className="flex overflow-hidden gap-px" style={{ background: 'var(--cream-dark)', borderRadius: '4px', padding: '3px', gap: '3px' }}>
           <button
             onClick={() => { setTab('order'); setFlagged(new Set()); setNotes({}) }}
-            className="font-label flex-1 py-2 text-base tracking-widest rounded-xl transition-all"
+            className="flex-1 py-2.5 text-xs tracking-widest uppercase transition-all"
             style={tab === 'order'
-              ? { background: 'var(--wine)', color: 'var(--cream)' }
-              : { color: 'var(--muted)' }}
+              ? { background: 'var(--wine)', color: 'var(--cream)', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em' }
+              : { color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em' }}
           >
             Needs Reorder
           </button>
           <button
             onClick={() => { setTab('make'); setFlagged(new Set()); setNotes({}) }}
-            className="font-label flex-1 py-2 text-base tracking-widest rounded-xl transition-all"
+            className="flex-1 py-2.5 text-xs tracking-widest uppercase transition-all"
             style={tab === 'make'
-              ? { background: 'var(--gold)', color: 'var(--wine-dark)' }
-              : { color: 'var(--muted)' }}
+              ? { background: '#7A5A30', color: 'var(--cream)', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em' }
+              : { color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em' }}
           >
             Needs Making
           </button>
@@ -211,43 +250,48 @@ export default function StaffPage() {
 
       <div className="px-4 pt-5 space-y-6">
         {tab === 'make' && (
-          <p className="text-xs rounded-2xl px-4 py-3" style={{ background: 'var(--cream-dark)', color: 'var(--muted)' }}>
+          <p className="text-xs px-4 py-3" style={{ background: 'var(--cream-dark)', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', borderRadius: '4px', letterSpacing: '0.05em' }}>
             These go straight to the kitchen queue.
           </p>
         )}
 
         {weeklyItems.length > 0 && (
           <div>
-            <p className="font-label text-base tracking-widest mb-2 px-1" style={{ color: 'var(--gold)' }}>
+            <p className="font-serif mb-2 px-1" style={{ fontSize: '0.7rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: '#7A5A30' }}>
               Weekly Staples
             </p>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {weeklyItems.map(item => {
                 const isFlagged = flagged.has(item.id)
                 return (
-                  <div key={item.id} className="rounded-2xl overflow-hidden transition-all"
+                  <div
+                    key={item.id}
+                    className="overflow-hidden transition-all"
                     style={isFlagged
-                      ? { background: 'var(--wine-dark)', boxShadow: '0 2px 12px rgba(28,10,18,0.15)' }
-                      : { background: 'white', border: '1px solid var(--cream-dark)' }}>
+                      ? { background: 'var(--wine-dark)', borderRadius: '4px' }
+                      : { background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px' }}
+                  >
                     <button onClick={() => toggleFlag(item.id)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
-                      <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all"
+                      <span
+                        className="w-4 h-4 flex items-center justify-center flex-shrink-0 text-xs transition-all"
                         style={isFlagged
-                          ? { background: 'var(--gold)', borderColor: 'var(--gold)', color: 'var(--wine-dark)' }
-                          : { borderColor: 'var(--gold)' }}>
-                        {isFlagged ? '!' : ''}
+                          ? { border: '1px solid var(--gold)', color: 'var(--gold)' }
+                          : { border: '1px solid var(--gold)', color: 'transparent' }}
+                      >
+                        {isFlagged ? '·' : ''}
                       </span>
-                      <span className="text-base font-medium flex-1" style={{ color: isFlagged ? 'var(--cream)' : 'var(--text)' }}>
+                      <span className="text-sm flex-1" style={{ color: isFlagged ? 'var(--cream)' : 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}>
                         {item.name}
                       </span>
-                      <span className="text-xs font-semibold tracking-wide" style={{ color: isFlagged ? 'var(--gold)' : 'var(--gold)' }}>
-                        {isFlagged ? 'LOW' : 'weekly'}
+                      <span className="text-xs tracking-widest uppercase" style={{ color: isFlagged ? 'var(--gold)' : 'var(--gold)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.6rem' }}>
+                        {isFlagged ? 'low' : 'weekly'}
                       </span>
                     </button>
                     {isFlagged && (
                       <div className="px-4 pb-3.5">
                         <input
-                          className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
-                          style={{ background: 'var(--wine-mid)', border: '1px solid #4A2030', color: 'var(--cream)' }}
+                          className="w-full text-sm px-3 py-2 focus:outline-none"
+                          style={{ background: flaggedInputBg, border: `1px solid ${flaggedInputBorder}`, color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)' }}
                           placeholder="Add a note (optional)"
                           value={notes[item.id] || ''}
                           onChange={e => setNotes(prev => ({ ...prev, [item.id]: e.target.value }))}
@@ -263,43 +307,44 @@ export default function StaffPage() {
 
         {itemsByCategory.map(({ category, items: catItems }) => (
           <div key={category.id}>
-            <p className="font-label text-base tracking-widest mb-2 px-1" style={{ color: 'var(--muted)' }}>
+            <p className="font-serif mb-2 px-1" style={{ fontSize: '0.7rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--muted)' }}>
               {category.name}
             </p>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {catItems.map(item => {
                 const isFlagged = flagged.has(item.id)
                 const isUrgent = urgency[item.id] === 'urgent'
-                const flaggedBg = tab === 'order' ? 'var(--wine)' : 'var(--gold)'
-                const flaggedText = tab === 'order' ? 'var(--cream)' : 'var(--wine-dark)'
                 return (
-                  <div key={item.id} className="rounded-2xl overflow-hidden transition-all"
+                  <div
+                    key={item.id}
+                    className="overflow-hidden transition-all"
                     style={isFlagged
-                      ? { background: flaggedBg, boxShadow: '0 2px 12px rgba(28,10,18,0.15)' }
-                      : { background: 'white', border: '1px solid var(--cream-dark)' }}>
+                      ? { background: flaggedActiveBg, borderRadius: '4px' }
+                      : { background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px' }}
+                  >
                     <button onClick={() => toggleFlag(item.id)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
-                      <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all"
+                      <span
+                        className="w-4 h-4 flex items-center justify-center flex-shrink-0 text-xs transition-all"
                         style={isFlagged
-                          ? { background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.4)', color: flaggedText }
-                          : { borderColor: 'rgba(255,255,255,0.2)' }}>
-                        {isFlagged ? '!' : ''}
+                          ? { border: '1px solid rgba(245,239,224,0.5)', color: 'var(--cream)' }
+                          : { border: '1px solid var(--cream-dark)' }}
+                      >
+                        {isFlagged ? '·' : ''}
                       </span>
-                      <span className="text-base font-medium flex-1" style={{ color: isFlagged ? flaggedText : 'var(--text)' }}>
+                      <span className="text-sm flex-1" style={{ color: isFlagged ? flaggedActiveText : 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}>
                         {item.name}
                       </span>
                       {isFlagged && (
-                        <span className="text-xs font-semibold tracking-wide" style={{ color: tab === 'order' ? 'rgba(247,241,232,0.7)' : 'rgba(28,10,18,0.6)' }}>
-                          {tab === 'order' ? 'LOW' : 'MAKE'}
+                        <span className="text-xs uppercase tracking-widest" style={{ color: 'rgba(245,239,224,0.6)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em' }}>
+                          {isOrder ? 'low' : 'make'}
                         </span>
                       )}
                     </button>
                     {isFlagged && (
                       <div className="px-4 pb-3.5 space-y-2">
                         <input
-                          className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
-                          style={tab === 'order'
-                            ? { background: 'var(--wine-mid)', border: '1px solid #4A2030', color: 'var(--cream)' }
-                            : { background: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.4)', color: 'var(--wine-dark)' }}
+                          className="w-full text-sm px-3 py-2 focus:outline-none"
+                          style={{ background: flaggedInputBg, border: `1px solid ${flaggedInputBorder}`, color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)' }}
                           placeholder={tab === 'make' ? 'Quantity or note (e.g. "1 batch")' : 'Add a note (optional)'}
                           value={notes[item.id] || ''}
                           onChange={e => setNotes(prev => ({ ...prev, [item.id]: e.target.value }))}
@@ -307,12 +352,12 @@ export default function StaffPage() {
                         {tab === 'make' && (
                           <button
                             onClick={() => setUrgency(prev => ({ ...prev, [item.id]: isUrgent ? 'normal' : 'urgent' }))}
-                            className="text-xs px-4 py-1.5 rounded-full font-semibold transition-colors"
+                            className="text-xs px-4 py-1.5 transition-colors uppercase tracking-widest"
                             style={isUrgent
-                              ? { background: 'var(--wine)', color: 'var(--cream)' }
-                              : { background: 'rgba(255,255,255,0.4)', color: 'var(--wine-dark)' }}
+                              ? { background: 'var(--wine)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em' }
+                              : { background: 'rgba(255,255,255,0.2)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em' }}
                           >
-                            {isUrgent ? '🔴 URGENT — tap to undo' : 'Mark urgent'}
+                            {isUrgent ? '· urgent — undo' : 'mark urgent'}
                           </button>
                         )}
                       </div>
@@ -326,22 +371,28 @@ export default function StaffPage() {
 
         {itemsByCategory.length === 0 && weeklyItems.length === 0 && (
           <div className="text-center py-20">
-            <p style={{ color: 'var(--muted)' }}>No items set up yet.</p>
-            <Link href="/admin" className="underline mt-2 block text-sm font-medium" style={{ color: 'var(--wine)' }}>Configure in Admin</Link>
+            <p className="font-serif" style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: '1.1rem' }}>Nothing set up yet.</p>
+            <Link href="/admin" className="underline mt-2 block text-xs tracking-widest uppercase" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>
+              Configure in Admin
+            </Link>
           </div>
         )}
       </div>
 
       {flagged.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3"
-          style={{ background: 'linear-gradient(to top, var(--cream) 70%, transparent)' }}>
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-4"
+          style={{ background: 'linear-gradient(to top, var(--cream) 65%, transparent)' }}>
           <button
             onClick={tab === 'order' ? submitOrder : submitMake}
             disabled={submitting}
-            className="font-label w-full py-4 rounded-2xl text-xl tracking-widest disabled:opacity-50 shadow-lg"
-            style={tab === 'order'
-              ? { background: 'var(--wine)', color: 'var(--cream)' }
-              : { background: 'var(--gold)', color: 'var(--wine-dark)' }}
+            className="w-full py-4 text-xs tracking-widest uppercase disabled:opacity-50"
+            style={{
+              background: isOrder ? 'var(--wine)' : '#7A5A30',
+              color: 'var(--cream)',
+              borderRadius: '4px',
+              fontFamily: 'var(--font-dm-sans)',
+              letterSpacing: '0.2em',
+            }}
           >
             {submitting
               ? 'Submitting...'

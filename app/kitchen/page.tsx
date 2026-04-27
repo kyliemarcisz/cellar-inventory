@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Task } from '@/lib/supabase'
 import Link from 'next/link'
-import Image from 'next/image'
 
 export default function KitchenPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -46,8 +45,8 @@ export default function KitchenPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#1C0A12] flex items-center justify-center">
-        <p className="text-stone-500 text-lg">Loading...</p>
+      <main className="min-h-screen flex items-center justify-center" style={{ background: 'var(--wine-dark)' }}>
+        <p className="font-serif" style={{ color: 'var(--gold)', fontStyle: 'italic', fontSize: '1.1rem' }}>a moment...</p>
       </main>
     )
   }
@@ -56,36 +55,54 @@ export default function KitchenPage() {
   const normal = tasks.filter(t => t.urgency === 'normal')
 
   return (
-    <main className="min-h-screen bg-[#1C0A12] pb-12">
-      <div className="sticky top-0 bg-[#1C0A12]/90 backdrop-blur border-b border-[#3D1220] px-4 py-4 flex items-center justify-between">
+    <main className="min-h-screen pb-12" style={{ background: 'var(--wine-dark)' }}>
+      <div
+        className="sticky top-0 backdrop-blur border-b px-4 py-4 flex items-center justify-between"
+        style={{ background: 'rgba(30,20,16,0.94)', borderColor: 'rgba(196,168,130,0.12)' }}
+      >
         <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <Image src="/cellar-logo.svg" alt="The Cellar" width={32} height={17}
-              style={{ filter: 'brightness(0) invert(1)', opacity: 0.5 }} />
-            <h1 className="text-xl font-bold text-white">Kitchen Queue</h1>
-          </div>
-          <p className={`text-sm mt-0.5 ${tasks.length === 0 ? 'text-green-400' : 'text-amber-400'}`}>
-            {tasks.length === 0 ? 'All clear ✓' : `${tasks.length} item${tasks.length > 1 ? 's' : ''} to prepare`}
+          <h1 className="font-serif" style={{ fontSize: '1.4rem', fontWeight: 300, color: 'var(--cream)', letterSpacing: '0.01em' }}>
+            Kitchen Queue
+          </h1>
+          <p
+            className="text-xs mt-0.5 tracking-widest uppercase"
+            style={{ color: tasks.length === 0 ? 'var(--muted)' : 'var(--terra)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.65rem', letterSpacing: '0.2em' }}
+          >
+            {tasks.length === 0 ? 'all clear' : `${tasks.length} to prepare`}
           </p>
         </div>
-        <Link href="/" className="text-stone-600 text-sm">← Home</Link>
+        <Link href="/" className="text-xs tracking-widest uppercase" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>
+          ← Home
+        </Link>
       </div>
 
       <div className="px-4 pt-6 space-y-8">
         {tasks.length === 0 && (
           <div className="text-center py-28">
-            <div className="w-20 h-20 bg-stone-800 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl text-green-400">✓</div>
-            <p className="text-white text-2xl font-bold">All caught up</p>
-            <p className="text-stone-500 mt-2">Nothing needs to be made right now.</p>
+            <div
+              className="w-14 h-14 flex items-center justify-center mx-auto mb-6 text-xl"
+              style={{ border: '1px solid rgba(196,168,130,0.3)', color: 'var(--gold)', borderRadius: '50%' }}
+            >
+              ✓
+            </div>
+            <p className="font-serif" style={{ color: 'var(--cream)', fontSize: '1.8rem', fontWeight: 300 }}>
+              All caught up.
+            </p>
+            <p className="text-sm mt-2" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+              Nothing needs to be made right now.
+            </p>
           </div>
         )}
 
         {urgent.length > 0 && (
           <div>
-            <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-3">
-              🔴 Urgent
+            <p
+              className="text-xs uppercase tracking-widest mb-3"
+              style={{ color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.62rem' }}
+            >
+              Urgent
             </p>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {urgent.map(task => (
                 <TaskCard key={task.id} task={task} onUpdate={updateStatus} />
               ))}
@@ -95,10 +112,13 @@ export default function KitchenPage() {
 
         {normal.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-3">
+            <p
+              className="text-xs uppercase tracking-widest mb-3"
+              style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.62rem' }}
+            >
               Queue
             </p>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {normal.map(task => (
                 <TaskCard key={task.id} task={task} onUpdate={updateStatus} />
               ))}
@@ -119,46 +139,58 @@ function TaskCard({ task, onUpdate }: {
   const isUrgent = task.urgency === 'urgent'
 
   return (
-    <div className={`rounded-2xl overflow-hidden ${
-      isUrgent ? 'bg-[#3D0A14] border border-[#6B1020]' : 'bg-[#2D0F1A] border border-[#4A1828]'
-    }`}>
+    <div
+      style={isUrgent
+        ? { background: '#2A1410', border: '1px solid rgba(193,113,79,0.3)', borderRadius: '4px', overflow: 'hidden' }
+        : { background: '#251810', border: '1px solid rgba(196,168,130,0.12)', borderRadius: '4px', overflow: 'hidden' }}
+    >
       {isInProgress && (
-        <div className="h-1 bg-amber-500 w-full" />
+        <div style={{ height: '2px', background: 'var(--gold)', width: '100%' }} />
       )}
       <div className="px-5 py-4">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-2">
           {isInProgress && (
-            <span className="text-xs font-bold text-amber-400 bg-amber-900/50 px-2.5 py-0.5 rounded-full">
-              IN PROGRESS
+            <span
+              className="text-xs uppercase tracking-widest px-2 py-0.5"
+              style={{ color: 'var(--gold)', border: '1px solid rgba(196,168,130,0.3)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.58rem', borderRadius: '2px' }}
+            >
+              In Progress
             </span>
           )}
-          <span className="text-xs text-stone-500">
+          <span
+            className="text-xs"
+            style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.05em' }}
+          >
             {item?.category?.name} · {task.flagged_by} · {getTimeAgo(task.flagged_at)}
           </span>
         </div>
 
-        <p className="text-white text-3xl font-bold tracking-tight">{item?.name}</p>
+        <p className="font-serif" style={{ fontSize: '2.4rem', fontWeight: 300, color: 'var(--cream)', letterSpacing: '0.01em', lineHeight: 1.1 }}>
+          {item?.name}
+        </p>
 
         {task.note && (
-          <p className="text-amber-300 text-sm mt-2 italic">&quot;{task.note}&quot;</p>
+          <p className="text-sm mt-2 italic" style={{ color: 'var(--gold)', fontFamily: 'var(--font-dm-sans)' }}>
+            &quot;{task.note}&quot;
+          </p>
         )}
 
         <div className="flex gap-2 mt-4">
           {!isInProgress && (
             <button
               onClick={() => onUpdate(task.id, 'in_progress')}
-              className="flex-1 py-3 rounded-xl text-base font-semibold" style={{ background: 'var(--gold)', color: 'var(--wine-dark)' }}
+              className="flex-1 py-3 text-xs uppercase tracking-widest"
+              style={{ background: 'var(--terra)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}
             >
               Start
             </button>
           )}
           <button
             onClick={() => onUpdate(task.id, 'done')}
-            className={`py-3 rounded-xl text-base font-semibold ${
-              isInProgress
-                ? 'flex-1 bg-white text-[#1C0A12]'
-                : 'px-6 bg-[#3D1220] text-white'
-            }`}
+            className={`py-3 text-xs uppercase tracking-widest ${isInProgress ? 'flex-1' : 'px-6'}`}
+            style={isInProgress
+              ? { background: 'var(--cream)', color: 'var(--wine-dark)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }
+              : { border: '1px solid rgba(196,168,130,0.2)', color: 'var(--muted)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}
           >
             {isInProgress ? 'Done ✓' : 'Done'}
           </button>

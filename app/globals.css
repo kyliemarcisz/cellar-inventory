@@ -1,21 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --cream: #F7F1E8;
-  --cream-dark: #EEE4D4;
-  --wine: #6B2232;
-  --wine-dark: #1C0A12;
-  --wine-mid: #3D1220;
-  --gold: #B8882E;
-  --text: #1A0A0F;
-  --muted: #7A6A62;
+  --cream: #F5EFE0;
+  --cream-dark: #EAE0CE;
+  --wine: #6B2737;
+  --wine-dark: #1E1410;
+  --wine-mid: #3D1A20;
+  --gold: #C4A882;
+  --terra: #C1714F;
+  --text: #1E1410;
+  --muted: #8A9167;
 
   /* Page backgrounds */
-  --page-bg: #3A1E0C;
-  --page-bg-header: rgba(52, 26, 8, 0.95);
-  --page-bg-gradient: rgba(58, 30, 12, 0);
+  --page-bg: #1E1410;
+  --page-bg-header: rgba(30, 20, 16, 0.95);
+  --page-bg-gradient: rgba(30, 20, 16, 0);
   --on-wood: #C4A882;
-  --on-wood-muted: #7A5C40;
+  --on-wood-muted: #8A9167;
 
   /* Corner palette */
   --corner-linen: #FAF8F4;
