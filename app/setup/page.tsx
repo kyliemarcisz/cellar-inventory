@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { THEMES, THEME_KEYS } from '@/lib/themes'
 import Link from 'next/link'
 
 const TEMPLATES: Record<string, string[]> = {
@@ -22,7 +23,7 @@ function toSlug(name: string) {
 export default function SetupPage() {
   const [step, setStep] = useState(1)
 
-  // Step 1 state
+  // Step 1
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [tagline, setTagline] = useState('')
@@ -30,12 +31,15 @@ export default function SetupPage() {
   const [slugEdited, setSlugEdited] = useState(false)
   const [slugError, setSlugError] = useState('')
 
-  // Step 2 state
+  // Step 2
   const [selected, setSelected] = useState<string[]>([])
   const [custom, setCustom] = useState('')
   const [customList, setCustomList] = useState<string[]>([])
 
-  // Step 3 state
+  // Step 3
+  const [theme, setTheme] = useState('cellar')
+
+  // Step 4
   const [saving, setSaving] = useState(false)
   const [savedSlug, setSavedSlug] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
@@ -77,34 +81,28 @@ export default function SetupPage() {
 
     const { data: shopData, error: shopErr } = await supabase
       .from('shops')
-      .insert({ name: name.trim(), slug, type, tagline: tagline.trim() || null })
+      .insert({ name: name.trim(), slug, type, tagline: tagline.trim() || null, theme })
       .select('id')
       .single()
 
     if (shopErr) {
-      if (shopErr.message?.includes('unique') || shopErr.code === '23505') {
-        setSlugError('That URL is already taken — try a different one.')
-        setSaving(false)
-        setStep(1)
-      } else {
-        setSlugError(shopErr.message)
-        setSaving(false)
-        setStep(1)
-      }
+      const isDupe = shopErr.message?.includes('unique') || shopErr.code === '23505'
+      setSlugError(isDupe ? 'That URL is already taken — try a different one.' : shopErr.message)
+      setSaving(false)
+      setStep(1)
       return
     }
 
     const shopId = shopData.id
-    const allCats = [...selected]
-    if (allCats.length > 0) {
+    if (selected.length > 0) {
       await supabase.from('categories').insert(
-        allCats.map((cat, i) => ({ name: cat, shop_id: shopId, sort_order: i }))
+        selected.map((cat, i) => ({ name: cat, shop_id: shopId, sort_order: i }))
       )
     }
 
     setSavedSlug(slug)
     setSaving(false)
-    setStep(3)
+    setStep(4)
   }
 
   function copyLink(text: string, key: string) {
@@ -117,25 +115,24 @@ export default function SetupPage() {
   const canProceed2 = selected.length > 0
   const base = typeof window !== 'undefined' ? window.location.origin : ''
   const roles = [
-    { key: 'staff',   label: 'staff',    desc: 'Flag low items' },
-    { key: 'kitchen', label: 'kitchen',  desc: 'Task queue display' },
-    { key: 'owner',   label: 'owner',    desc: 'Reorder board' },
+    { key: 'staff',   label: 'staff',     desc: 'Flag low items' },
+    { key: 'kitchen', label: 'kitchen',   desc: 'Task queue display' },
+    { key: 'owner',   label: 'owner',     desc: 'Reorder board' },
     { key: 'artisan', label: 'ask grace', desc: 'AI sommelier / guide' },
-    { key: 'admin',   label: 'admin',    desc: 'Manage items & personas' },
+    { key: 'admin',   label: 'admin',     desc: 'Manage items & personas' },
   ]
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-5 py-12" style={{ background: 'var(--cream)' }}>
-      {/* Wordmark */}
       <Link href="/" className="font-serif mb-10 block" style={{ fontSize: '1rem', letterSpacing: '0.55em', paddingLeft: '0.55em', color: 'var(--text)' }}>
         corner
       </Link>
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8">
-        {[1, 2, 3].map(n => (
+        {[1, 2, 3, 4].map(n => (
           <div key={n} className="flex items-center gap-2">
-            <div className="w-6 h-6 flex items-center justify-center text-xs" style={{
+            <div className="w-6 h-6 flex items-center justify-center" style={{
               borderRadius: '50%',
               background: step >= n ? 'var(--wine)' : 'transparent',
               border: `1px solid ${step >= n ? 'var(--wine)' : 'var(--cream-dark)'}`,
@@ -143,7 +140,7 @@ export default function SetupPage() {
               fontFamily: 'var(--font-dm-sans)',
               fontSize: '0.62rem',
             }}>{n}</div>
-            {n < 3 && <div style={{ width: '1.5rem', height: '1px', background: step > n ? 'var(--wine)' : 'var(--cream-dark)' }} />}
+            {n < 4 && <div style={{ width: '1.5rem', height: '1px', background: step > n ? 'var(--wine)' : 'var(--cream-dark)' }} />}
           </div>
         ))}
       </div>
@@ -151,23 +148,14 @@ export default function SetupPage() {
       {/* ── Step 1: Shop Info ── */}
       {step === 1 && (
         <div style={{ width: '100%', maxWidth: '400px' }}>
-          <h1 className="font-serif text-center mb-1" style={{ fontSize: '1.8rem', fontWeight: 300, color: 'var(--text)' }}>
-            Your restaurant
-          </h1>
-          <p className="text-center mb-7 text-sm" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
-            Let&apos;s set up your Corner.
-          </p>
+          <h1 className="font-serif text-center mb-1" style={{ fontSize: '1.8rem', fontWeight: 300, color: 'var(--text)' }}>Your restaurant</h1>
+          <p className="text-center mb-7 text-sm" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Let&apos;s set up your Corner.</p>
 
           <div className="space-y-4">
             <div>
               <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.62rem', letterSpacing: '0.2em' }}>Name</label>
-              <input
-                className="w-full px-4 py-3 text-sm focus:outline-none"
-                style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
-                placeholder="The Cellar"
-                value={name}
-                onChange={e => handleNameChange(e.target.value)}
-              />
+              <input className="w-full px-4 py-3 text-sm focus:outline-none" style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
+                placeholder="The Cellar" value={name} onChange={e => handleNameChange(e.target.value)} />
             </div>
 
             <div>
@@ -175,13 +163,10 @@ export default function SetupPage() {
               <div className="grid grid-cols-3 gap-1.5">
                 {VENUE_TYPES.map(t => (
                   <button key={t} onClick={() => handleTypeChange(t)} className="py-2 text-xs capitalize" style={{
-                    borderRadius: '3px',
-                    border: `1px solid ${type === t ? 'var(--wine)' : 'var(--cream-dark)'}`,
+                    borderRadius: '3px', border: `1px solid ${type === t ? 'var(--wine)' : 'var(--cream-dark)'}`,
                     background: type === t ? 'var(--wine)' : 'white',
                     color: type === t ? 'var(--cream)' : 'var(--text)',
-                    fontFamily: 'var(--font-dm-sans)',
-                    fontSize: '0.68rem',
-                    letterSpacing: '0.05em',
+                    fontFamily: 'var(--font-dm-sans)', fontSize: '0.68rem',
                   }}>{t}</button>
                 ))}
               </div>
@@ -189,37 +174,23 @@ export default function SetupPage() {
 
             <div>
               <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.62rem', letterSpacing: '0.2em' }}>Tagline <span style={{ opacity: 0.5 }}>(optional)</span></label>
-              <input
-                className="w-full px-4 py-3 text-sm focus:outline-none"
-                style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
-                placeholder="A corner of Tuscany in the city"
-                value={tagline}
-                onChange={e => setTagline(e.target.value)}
-              />
+              <input className="w-full px-4 py-3 text-sm focus:outline-none" style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
+                placeholder="A corner of Tuscany in the city" value={tagline} onChange={e => setTagline(e.target.value)} />
             </div>
 
             <div>
               <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.62rem', letterSpacing: '0.2em' }}>Your URL</label>
               <div className="flex items-center" style={{ background: 'white', border: `1px solid ${slugError ? 'var(--wine)' : 'var(--cream-dark)'}`, borderRadius: '4px', overflow: 'hidden' }}>
                 <span className="px-3 py-3 text-xs select-none" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', borderRight: '1px solid var(--cream-dark)', whiteSpace: 'nowrap' }}>corner.app/</span>
-                <input
-                  className="flex-1 px-3 py-3 text-sm focus:outline-none"
-                  style={{ background: 'transparent', color: 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}
-                  value={slug}
-                  onChange={e => handleSlugChange(e.target.value)}
-                  placeholder="the-cellar"
-                />
+                <input className="flex-1 px-3 py-3 text-sm focus:outline-none" style={{ background: 'transparent', color: 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}
+                  value={slug} onChange={e => handleSlugChange(e.target.value)} placeholder="the-cellar" />
               </div>
               {slugError && <p className="text-xs mt-1" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)' }}>{slugError}</p>}
             </div>
           </div>
 
-          <button
-            onClick={() => setStep(2)}
-            disabled={!canProceed1}
-            className="w-full mt-7 py-3.5 text-xs uppercase tracking-widest disabled:opacity-40"
-            style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}
-          >
+          <button onClick={() => setStep(2)} disabled={!canProceed1} className="w-full mt-7 py-3.5 text-xs uppercase tracking-widest disabled:opacity-40"
+            style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
             Continue →
           </button>
         </div>
@@ -228,59 +199,112 @@ export default function SetupPage() {
       {/* ── Step 2: Categories ── */}
       {step === 2 && (
         <div style={{ width: '100%', maxWidth: '400px' }}>
-          <h1 className="font-serif text-center mb-1" style={{ fontSize: '1.8rem', fontWeight: 300, color: 'var(--text)' }}>
-            Your inventory
-          </h1>
-          <p className="text-center mb-7 text-sm" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
-            Choose the categories your team will track.
-          </p>
+          <h1 className="font-serif text-center mb-1" style={{ fontSize: '1.8rem', fontWeight: 300, color: 'var(--text)' }}>Your inventory</h1>
+          <p className="text-center mb-7 text-sm" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Choose the categories your team will track.</p>
 
           <div className="flex flex-wrap gap-2 mb-4">
             {(TEMPLATES[type] ?? []).concat(customList.filter(c => !(TEMPLATES[type] ?? []).includes(c))).map(cat => (
               <button key={cat} onClick={() => toggleCategory(cat)} className="px-3 py-2 text-xs" style={{
-                borderRadius: '3px',
-                border: `1px solid ${selected.includes(cat) ? 'var(--wine)' : 'var(--cream-dark)'}`,
+                borderRadius: '3px', border: `1px solid ${selected.includes(cat) ? 'var(--wine)' : 'var(--cream-dark)'}`,
                 background: selected.includes(cat) ? 'var(--wine)' : 'white',
                 color: selected.includes(cat) ? 'var(--cream)' : 'var(--text)',
-                fontFamily: 'var(--font-dm-sans)',
-                fontSize: '0.72rem',
+                fontFamily: 'var(--font-dm-sans)', fontSize: '0.72rem',
               }}>
                 {selected.includes(cat) ? '✓ ' : ''}{cat}
               </button>
             ))}
           </div>
 
-          <div className="flex gap-2">
-            <input
-              className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
-              style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
-              placeholder="Add a custom category…"
-              value={custom}
-              onChange={e => setCustom(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addCustom()}
-            />
-            <button onClick={addCustom} className="px-4 text-xs" style={{ background: 'var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}>
-              Add
-            </button>
+          <div className="flex gap-2 mb-3">
+            <input className="flex-1 px-3 py-2.5 text-sm focus:outline-none" style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
+              placeholder="Add a custom category…" value={custom} onChange={e => setCustom(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCustom()} />
+            <button onClick={addCustom} className="px-4 text-xs" style={{ background: 'var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}>Add</button>
           </div>
 
-          <p className="text-xs mt-3 mb-6" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+          <p className="text-xs mb-6" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
             {selected.length} {selected.length === 1 ? 'category' : 'categories'} selected
           </p>
 
           <div className="flex gap-2">
-            <button onClick={() => setStep(1)} className="px-5 py-3.5 text-xs uppercase tracking-widest" style={{ border: '1px solid var(--cream-dark)', color: 'var(--muted)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.65rem' }}>
-              Back
+            <button onClick={() => setStep(1)} className="px-5 py-3.5 text-xs uppercase tracking-widest" style={{ border: '1px solid var(--cream-dark)', color: 'var(--muted)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.65rem' }}>Back</button>
+            <button onClick={() => setStep(3)} disabled={!canProceed2} className="flex-1 py-3.5 text-xs uppercase tracking-widest disabled:opacity-40"
+              style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
+              Continue →
             </button>
-            <button onClick={handleLaunch} disabled={!canProceed2 || saving} className="flex-1 py-3.5 text-xs uppercase tracking-widest disabled:opacity-40" style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 3: Brand ── */}
+      {step === 3 && (
+        <div style={{ width: '100%', maxWidth: '440px' }}>
+          <h1 className="font-serif text-center mb-1" style={{ fontSize: '1.8rem', fontWeight: 300, color: 'var(--text)' }}>Your vibe</h1>
+          <p className="text-center mb-7 text-sm" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Choose how your team&apos;s interface looks.</p>
+
+          <div className="grid grid-cols-2 gap-3 mb-7">
+            {THEME_KEYS.map(key => {
+              const t = THEMES[key]
+              const isActive = theme === key
+              return (
+                <button key={key} onClick={() => setTheme(key)} style={{
+                  borderRadius: '6px',
+                  border: `2px solid ${isActive ? t.preview.accent : 'transparent'}`,
+                  padding: '0',
+                  overflow: 'hidden',
+                  outline: 'none',
+                  boxShadow: isActive ? `0 0 0 1px ${t.preview.accent}` : '0 1px 4px rgba(0,0,0,0.08)',
+                  transition: 'all 0.15s',
+                }}>
+                  {/* Mini UI preview */}
+                  <div style={{ background: t.preview.bg, padding: '12px' }}>
+                    {/* Header bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div style={{ width: '40%', height: '6px', background: t.preview.text, borderRadius: '2px', opacity: 0.8 }} />
+                      <div style={{ width: '20%', height: '5px', background: t.preview.muted, borderRadius: '2px', opacity: 0.5 }} />
+                    </div>
+                    {/* Card rows */}
+                    <div style={{ background: t.preview.card, borderRadius: '3px', padding: '6px 8px', marginBottom: '5px' }}>
+                      <div style={{ width: '70%', height: '5px', background: t.preview.text, borderRadius: '2px', opacity: 0.7, marginBottom: '4px' }} />
+                      <div style={{ width: '45%', height: '4px', background: t.preview.muted, borderRadius: '2px', opacity: 0.4 }} />
+                    </div>
+                    <div style={{ background: t.preview.card, borderRadius: '3px', padding: '6px 8px', marginBottom: '8px' }}>
+                      <div style={{ width: '55%', height: '5px', background: t.preview.text, borderRadius: '2px', opacity: 0.7, marginBottom: '4px' }} />
+                      <div style={{ width: '35%', height: '4px', background: t.preview.muted, borderRadius: '2px', opacity: 0.4 }} />
+                    </div>
+                    {/* Button */}
+                    <div style={{ background: t.preview.accent, borderRadius: '3px', padding: '5px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '40%', height: '4px', background: t.preview.bg, borderRadius: '2px', opacity: 0.85 }} />
+                    </div>
+                  </div>
+                  {/* Label */}
+                  <div style={{ background: t.preview.card, padding: '7px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.68rem', fontWeight: 500, color: t.preview.text, letterSpacing: '0.05em', textAlign: 'left' }}>{t.name}</p>
+                      <p style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.58rem', color: t.preview.muted, textAlign: 'left', marginTop: '1px' }}>{t.tagline}</p>
+                    </div>
+                    {isActive && (
+                      <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: t.preview.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ color: t.preview.bg, fontSize: '8px', lineHeight: 1 }}>✓</span>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={() => setStep(2)} className="px-5 py-3.5 text-xs uppercase tracking-widest" style={{ border: '1px solid var(--cream-dark)', color: 'var(--muted)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.65rem' }}>Back</button>
+            <button onClick={handleLaunch} disabled={saving} className="flex-1 py-3.5 text-xs uppercase tracking-widest disabled:opacity-40"
+              style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
               {saving ? 'Launching…' : 'Launch →'}
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Step 3: Go Live ── */}
-      {step === 3 && (
+      {/* ── Step 4: Go Live ── */}
+      {step === 4 && (
         <div style={{ width: '100%', maxWidth: '420px' }}>
           <div className="text-center mb-8">
             <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4" style={{ border: '1px solid var(--wine)', color: 'var(--wine)', borderRadius: '50%', fontSize: '1.2rem' }}>✓</div>
@@ -301,11 +325,7 @@ export default function SetupPage() {
                   <button onClick={() => copyLink(url, r.key)} className="text-xs px-3 py-1.5 flex-shrink-0 uppercase tracking-widest" style={{
                     background: isCopied ? 'var(--wine)' : 'var(--cream-dark)',
                     color: isCopied ? 'var(--cream)' : 'var(--text)',
-                    borderRadius: '3px',
-                    fontFamily: 'var(--font-dm-sans)',
-                    fontSize: '0.58rem',
-                    letterSpacing: '0.15em',
-                    transition: 'all 0.15s',
+                    borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.58rem', letterSpacing: '0.15em', transition: 'all 0.15s',
                   }}>
                     {isCopied ? 'Copied!' : 'Copy'}
                   </button>
@@ -314,7 +334,8 @@ export default function SetupPage() {
             })}
           </div>
 
-          <Link href={`/${savedSlug}`} className="block w-full py-3.5 text-center text-xs uppercase tracking-widest" style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
+          <Link href={`/${savedSlug}`} className="block w-full py-3.5 text-center text-xs uppercase tracking-widest"
+            style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
             Enter your Corner →
           </Link>
 

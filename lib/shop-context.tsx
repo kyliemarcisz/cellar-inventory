@@ -11,6 +11,7 @@ export type Shop = {
   address: string | null
   type: string
   tagline: string | null
+  theme: string | null
 }
 
 type ShopCtx = {
