@@ -11,7 +11,7 @@ type ItemWithCategory = Item & { category: Category }
 type Tab = 'order' | 'make'
 
 export default function StaffPage() {
-  const { shopId, catIds, loading: shopLoading, notFound } = useShop()
+  const { shop, shopId, catIds, loading: shopLoading, notFound } = useShop()
   const { shop: slug } = useParams<{ shop: string }>()
 
   const [categories, setCategories] = useState<Category[]>([])
@@ -87,7 +87,7 @@ export default function StaffPage() {
   if (!nameSet) return (
     <main className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--wine-dark)' }}>
       <div className="w-full max-w-sm">
-        <p style={{ fontSize: '0.72rem', letterSpacing: '0.32em', color: 'var(--gold)', textTransform: 'uppercase', fontFamily: 'var(--font-dm-sans)', marginBottom: '0.5rem' }}>The Cellar</p>
+        <p style={{ fontSize: '0.72rem', letterSpacing: '0.32em', color: 'var(--gold)', textTransform: 'uppercase', fontFamily: 'var(--font-dm-sans)', marginBottom: '0.5rem' }}>{shop?.name}</p>
         <h1 className="font-serif mb-2" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--cream)', lineHeight: 1.2 }}>What&apos;s your name?</h1>
         <p className="text-sm mb-8" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>So the owner knows who flagged it.</p>
         <input className="w-full px-4 py-4 text-base focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(196,168,130,0.25)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }} placeholder="Your name" value={staffName} onChange={e => setStaffName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveName()} autoFocus />
