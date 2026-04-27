@@ -74,6 +74,35 @@ export default function Home() {
           }}
         />
 
+        {/* Setup CTA */}
+        <Link
+          href="/setup"
+          style={{
+            display: 'block',
+            textAlign: 'center',
+            padding: '0.95rem 2rem',
+            background: '#3B2A1A',
+            color: '#FAF8F4',
+            fontSize: '0.65rem',
+            letterSpacing: '0.32em',
+            textTransform: 'uppercase',
+            fontFamily: 'var(--font-dm-sans)',
+            marginBottom: '3rem',
+          }}
+        >
+          start your restaurant →
+        </Link>
+
+        {/* Divider */}
+        <div
+          style={{
+            width: '3rem',
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, #C9A87C, transparent)',
+            marginBottom: '3rem',
+          }}
+        />
+
         {/* Demo tenant label */}
         <p
           style={{
@@ -99,7 +128,7 @@ export default function Home() {
           }}
         >
           <Link
-            href="/staff"
+            href="/cellar/staff"
             style={{
               display: 'block',
               textAlign: 'center',
@@ -111,14 +140,13 @@ export default function Home() {
               letterSpacing: '0.32em',
               textTransform: 'uppercase',
               fontFamily: 'var(--font-dm-sans)',
-              transition: 'background 0.2s, color 0.2s',
             }}
           >
             staff
           </Link>
 
           <Link
-            href="/kitchen"
+            href="/cellar/kitchen"
             style={{
               display: 'block',
               textAlign: 'center',
@@ -135,7 +163,7 @@ export default function Home() {
           </Link>
 
           <Link
-            href="/owner"
+            href="/cellar/owner"
             style={{
               display: 'block',
               textAlign: 'center',
@@ -153,7 +181,7 @@ export default function Home() {
           </Link>
 
           <Link
-            href="/artisan"
+            href="/cellar/artisan"
             style={{
               display: 'block',
               textAlign: 'center',
@@ -174,7 +202,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="text-center" style={{ paddingBottom: '2.5rem' }}>
         <Link
-          href="/admin"
+          href="/cellar/admin"
           style={{
             fontSize: '0.58rem',
             letterSpacing: '0.3em',
