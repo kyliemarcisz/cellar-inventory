@@ -70,7 +70,7 @@ export default function ShopLandingPage() {
       </div>
 
       <footer className="text-center" style={{ paddingBottom: '2.5rem' }}>
-        <Link href={`/${slug}/admin`} style={{ fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(184,169,154,0.35)', fontFamily: 'var(--font-dm-sans)' }}>
+        <Link href={`/${slug}/admin`} style={{ fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: '#000', fontFamily: 'var(--font-dm-sans)' }}>
           admin
         </Link>
       </footer>

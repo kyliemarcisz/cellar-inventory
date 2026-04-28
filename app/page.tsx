@@ -207,7 +207,7 @@ export default function Home() {
             fontSize: '0.58rem',
             letterSpacing: '0.3em',
             textTransform: 'uppercase',
-            color: 'rgba(184,169,154,0.35)',
+            color: '#000',
             fontFamily: 'var(--font-dm-sans)',
           }}
         >
