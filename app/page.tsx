@@ -116,7 +116,7 @@ const ROLES = [
   {
     key: 'staff', label: 'Staff', href: '/cellar/staff',
     accent: '#C9A87C', text: '#3B2A1A',
-    desc: 'The team's daily checklist.',
+    desc: "The team's daily checklist.",
     features: ['Flag low stock in one tap', 'Mark items out of stock', 'Count inventory with +/−', 'Weekly staples pre-checked', 'Below-par alerts in real time'],
   },
   {
