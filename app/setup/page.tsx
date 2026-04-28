@@ -99,7 +99,6 @@ export default function SetupPage() {
     setSavedName(name.trim())
     setSaving(false)
     setStep(4)
-    setTimeout(() => router.push(`/${slug}/admin`), 1800)
   }
 
   function copyLink(text: string, key: string) {
@@ -352,14 +351,14 @@ export default function SetupPage() {
             })}
           </div>
 
-          <Link href={`/${savedSlug}/admin`} className="block w-full py-3.5 text-center text-xs uppercase tracking-widest"
+          <button onClick={() => router.push(`/${savedSlug}/admin`)} className="block w-full py-3.5 text-center text-xs uppercase tracking-widest"
             style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
-            Add your menu in Admin →
-          </Link>
-          <Link href={`/${savedSlug}`} className="block w-full py-3 text-center text-xs mt-2"
-            style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
-            Explore your Corner →
-          </Link>
+            Enter your Corner →
+          </button>
+          <button onClick={() => router.push(`/${savedSlug}`)} className="block w-full py-3 text-center text-xs mt-2"
+            style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            Go to home page →
+          </button>
         </div>
       )}
     </main>
