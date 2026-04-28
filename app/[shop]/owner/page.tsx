@@ -10,7 +10,7 @@ import Link from 'next/link'
 type FlagWithSupplier = Flag & { item: { name: string; category: { name: string; supplier_name: string | null; supplier_email: string | null } } }
 type BelowParItem = { id: string; name: string; par_level: number; par_unit: string; current_qty: number; category_name: string; counted_by: string; counted_at: string; supplier_email: string | null; supplier_name: string | null }
 type DraftItem = { flagId: string; itemName: string; note: string; flaggedBy: string; supplierEmail: string | null; supplierName: string | null }
-type OrderRecord = { id: string; supplier_name: string; supplier_email: string; items: { name: string; note: string | null; flaggedBy: string }[]; created_at: string }
+type OrderRecord = { id: string; supplier_name: string; supplier_email: string; items: { name: string; note: string | null; flaggedBy: string }[]; created_at: string; confirmation_token: string | null; confirmed_at: string | null; estimated_delivery: string | null; delivery_note: string | null }
 
 export default function OwnerPage() {
   const { shop, shopId, itemIds, loading: shopLoading, notFound } = useShop()
@@ -166,12 +166,14 @@ export default function OwnerPage() {
     for (const [, supplier] of bySupplier) {
       try {
         const orderItems = supplier.items.map(i => ({ name: i.itemName, note: i.note || null, flaggedBy: i.flaggedBy }))
+        const confirmToken = crypto.randomUUID()
+        const confirmUrl = `${window.location.origin}/confirm/${confirmToken}`
         await fetch('/api/send-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shopName: shop.name, supplierName: supplier.name, supplierEmail: supplier.email, items: orderItems, emailBody: emailDrafts[supplier.email] || undefined }),
+          body: JSON.stringify({ shopName: shop.name, supplierName: supplier.name, supplierEmail: supplier.email, items: orderItems, emailBody: emailDrafts[supplier.email] || undefined, confirmUrl }),
         })
-        await supabase.from('orders').insert({ shop_id: shopId, supplier_name: supplier.name, supplier_email: supplier.email, items: orderItems })
+        await supabase.from('orders').insert({ shop_id: shopId, supplier_name: supplier.name, supplier_email: supplier.email, items: orderItems, confirmation_token: confirmToken })
         supplier.items.forEach(i => sentIds.add(i.flagId))
       } catch {
         setEmailError(`Failed to email ${supplier.name}`)
@@ -463,12 +465,22 @@ export default function OwnerPage() {
             <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>
               {recentOrders.map((order, i) => (
                 <div key={order.id} className="px-4 py-3 flex items-start justify-between gap-3"
-                  style={{ borderTop: i > 0 ? '1px solid var(--cream-dark)' : undefined }}>
+                  style={{ borderTop: i > 0 ? '1px solid var(--cream-dark)' : undefined, borderLeft: `3px solid ${order.confirmed_at ? '#4A7C59' : 'var(--cream-dark)'}` }}>
                   <div className="flex-1 min-w-0">
                     <p style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.875rem', color: 'var(--text)' }}>{order.supplier_name}</p>
                     <p style={{ fontSize: '0.7rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
                       {order.items.length} item{order.items.length !== 1 ? 's' : ''} · {order.items.map(i => i.name).join(', ')}
                     </p>
+                    {order.confirmed_at ? (
+                      <p style={{ fontSize: '0.68rem', color: '#4A7C59', fontFamily: 'var(--font-dm-sans)', marginTop: '2px' }}>
+                        ✓ Supplier confirmed{order.estimated_delivery ? ` · delivering ${order.estimated_delivery}` : ''}
+                        {order.delivery_note ? ` · "${order.delivery_note}"` : ''}
+                      </p>
+                    ) : (
+                      <p style={{ fontSize: '0.68rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', marginTop: '2px', fontStyle: 'italic' }}>
+                        Awaiting supplier confirmation
+                      </p>
+                    )}
                   </div>
                   <p style={{ fontSize: '0.68rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', flexShrink: 0 }}>{getDateShort(order.created_at)}</p>
                 </div>
