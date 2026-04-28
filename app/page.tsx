@@ -70,19 +70,19 @@ const ROLES = [
 const DIFFERENTIATORS = [
   {
     label: 'AI-native, not AI-added',
-    body: 'Corner was built around Claude from day one. Paste your menu and your inventory is live in seconds. Your AI assistant knows your actual wine list, your recipes, and your team's voice — not a generic chatbot.',
+    body: "Corner was built around Claude from day one. Paste your menu and your inventory is live in seconds. Your AI assistant knows your actual wine list, your recipes, and your team's voice — not a generic chatbot.",
   },
   {
     label: 'Runs on a phone, requires no training',
-    body: 'Staff open a link, tap their name, and they're working. No app download, no account creation, no onboarding deck. Every role has exactly what it needs and nothing it doesn't.',
+    body: "Staff open a link, tap their name, and they're working. No app download, no account creation, no onboarding deck. Every role has exactly what it needs and nothing it doesn't.",
   },
   {
     label: 'Closes the loop on ordering',
-    body: 'Most tools tell you what's low. Corner tells your supplier. When an owner marks items ordered, a branded email goes out automatically — grouped by supplier, with every flagged item and note included.',
+    body: "Most tools tell you what's low. Corner tells your supplier. When an owner marks items ordered, a branded email goes out automatically — grouped by supplier, with every flagged item and note included.",
   },
   {
     label: 'Built for independent restaurants',
-    body: 'MarketMan and BlueCart are built for chains with purchasing teams. Corner is for the owner who's also on the floor on Saturday night. Setup takes fifteen minutes and the whole team is running by end of shift.',
+    body: "MarketMan and BlueCart are built for chains with purchasing teams. Corner is for the owner who's also on the floor on Saturday night. Setup takes fifteen minutes and the whole team is running by end of shift.",
   },
 ]
 
