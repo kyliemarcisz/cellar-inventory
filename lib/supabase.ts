@@ -58,6 +58,14 @@ export type Task = {
   item?: Item & { category?: Category }
 }
 
+export type ShopDocument = {
+  id: string
+  shop_id: string
+  name: string
+  content: string
+  created_at: string
+}
+
 export type AIPersona = {
   id: string
   shop_id: string

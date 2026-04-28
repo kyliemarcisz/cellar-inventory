@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useShop } from '@/lib/shop-context'
 import { useParams } from 'next/navigation'
-import type { AIPersona } from '@/lib/supabase'
+import type { AIPersona, ShopDocument } from '@/lib/supabase'
 import Link from 'next/link'
 
 type Message = { role: 'user' | 'assistant'; content: string }
@@ -19,10 +19,11 @@ export default function ArtisanPage() {
   const [streaming, setStreaming] = useState(false)
   const [loading, setLoading] = useState(true)
   const [menuContext, setMenuContext] = useState<string | null>(null)
+  const [documents, setDocuments] = useState<ShopDocument[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!shopLoading && shopId) { loadPersonas(); loadMenu() }
+    if (!shopLoading && shopId) { loadPersonas(); loadMenu(); loadDocuments() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopLoading, shopId])
 
@@ -41,6 +42,12 @@ export default function ArtisanPage() {
     if (data?.menu_text) setMenuContext(data.menu_text)
   }
 
+  async function loadDocuments() {
+    if (!shopId) return
+    const { data } = await supabase.from('shop_documents').select('*').eq('shop_id', shopId).order('created_at')
+    if (data) setDocuments(data as ShopDocument[])
+  }
+
   function switchPersona(id: string) {
     if (id === activeId) return
     setActiveId(id); setMessages([]); setInput('')
@@ -56,7 +63,7 @@ export default function ArtisanPage() {
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text.trim(), systemPrompt: persona.system_prompt, menuContext: menuContext || undefined }) })
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text.trim(), systemPrompt: persona.system_prompt, menuContext: menuContext || undefined, documents: documents.length ? documents.map(d => ({ name: d.name, content: d.content })) : undefined }) })
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
       let done = false

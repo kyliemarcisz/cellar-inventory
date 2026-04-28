@@ -4,14 +4,24 @@ import { NextRequest } from 'next/server'
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
-  const { message, systemPrompt, menuContext } = await req.json()
+  const { message, systemPrompt, menuContext, documents } = await req.json()
 
   if (!message || !systemPrompt) {
     return new Response('Invalid request', { status: 400 })
   }
 
-  const fullSystem = menuContext
-    ? `${systemPrompt}\n\n---\nCurrent menu & offerings at this restaurant:\n${menuContext}`
+  let knowledgeBlock = ''
+  if (menuContext) {
+    knowledgeBlock += `\n\n--- Current Menu & Offerings ---\n${menuContext}`
+  }
+  if (documents?.length) {
+    for (const doc of documents as { name: string; content: string }[]) {
+      knowledgeBlock += `\n\n--- ${doc.name} ---\n${doc.content}`
+    }
+  }
+
+  const fullSystem = knowledgeBlock
+    ? `${systemPrompt}\n\nYou have access to the following restaurant knowledge. Use it to give accurate, specific answers:\n${knowledgeBlock}`
     : systemPrompt
 
   const stream = client.messages.stream({

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useShop } from '@/lib/shop-context'
 import { useParams } from 'next/navigation'
-import type { Category, Item, AIPersona } from '@/lib/supabase'
+import type { Category, Item, AIPersona, ShopDocument } from '@/lib/supabase'
 import Link from 'next/link'
 
 type ItemWithCategory = Item & { category: Category }
@@ -36,6 +36,12 @@ export default function AdminPage() {
   const [adding, setAdding] = useState(false)
   const [addSuccess, setAddSuccess] = useState(false)
 
+  // Documents state
+  const [documents, setDocuments] = useState<ShopDocument[]>([])
+  const [docName, setDocName] = useState('')
+  const [docContent, setDocContent] = useState('')
+  const [docSaving, setDocSaving] = useState(false)
+
   // Inventory tab state
   const [newCatName, setNewCatName] = useState('')
   const [newItemName, setNewItemName] = useState('')
@@ -55,7 +61,7 @@ export default function AdminPage() {
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
 
   useEffect(() => {
-    if (!shopLoading && shopId) { loadData(); loadPersonas(); loadMenu() }
+    if (!shopLoading && shopId) { loadData(); loadPersonas(); loadMenu(); loadDocuments() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopLoading, shopId])
 
@@ -83,6 +89,25 @@ export default function AdminPage() {
   }
 
   // ── Menu actions ──
+
+  async function loadDocuments() {
+    if (!shopId) return
+    const { data } = await supabase.from('shop_documents').select('*').eq('shop_id', shopId).order('created_at')
+    if (data) setDocuments(data as ShopDocument[])
+  }
+
+  async function saveDocument() {
+    if (!shopId || !docName.trim() || !docContent.trim()) return
+    setDocSaving(true)
+    const { data } = await supabase.from('shop_documents').insert({ shop_id: shopId, name: docName.trim(), content: docContent.trim() }).select('*').single()
+    if (data) { setDocuments(prev => [...prev, data as ShopDocument]); setDocName(''); setDocContent('') }
+    setDocSaving(false)
+  }
+
+  async function deleteDocument(id: string) {
+    await supabase.from('shop_documents').delete().eq('id', id)
+    setDocuments(prev => prev.filter(d => d.id !== id))
+  }
 
   async function saveMenu() {
     if (!shopId || !menuText.trim()) return
@@ -361,6 +386,53 @@ export default function AdminPage() {
                 <p className="text-sm" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)' }}>✓ Items added to inventory. Switch to the Inventory tab to review.</p>
               </div>
             )}
+
+            {/* Documents */}
+            <div style={{ borderTop: '1px solid var(--cream-dark)', paddingTop: '1.5rem' }}>
+              <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.62rem' }}>Knowledge Base</p>
+              <p className="text-sm mb-4" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                Upload supplier catalogs, training docs, wine guides, SOPs — anything your AI personas should know.
+              </p>
+
+              {documents.length > 0 && (
+                <div className="space-y-2 mb-5">
+                  {documents.map(doc => (
+                    <div key={doc.id} className="flex items-start gap-3 px-4 py-3" style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px' }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium" style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}>{doc.name}</p>
+                        <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>{doc.content.slice(0, 80)}…</p>
+                      </div>
+                      <button onClick={() => deleteDocument(doc.id)} className="text-xs flex-shrink-0 mt-0.5" style={{ color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)' }}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <input
+                  className="w-full px-4 py-3 text-sm focus:outline-none"
+                  style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
+                  placeholder="Document name (e.g. Supplier Catalog, Wine Training Guide)"
+                  value={docName}
+                  onChange={e => setDocName(e.target.value)}
+                />
+                <textarea
+                  className="w-full px-4 py-3 text-sm focus:outline-none resize-none"
+                  style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', minHeight: '140px' }}
+                  placeholder={"Paste the document content here.\n\nWorks great for:\n· Supplier contact sheets\n· Wine & spirits training notes\n· Allergy & dietary guides\n· Opening/closing SOPs\n· Vintage tasting notes"}
+                  value={docContent}
+                  onChange={e => setDocContent(e.target.value)}
+                />
+                <button
+                  onClick={saveDocument}
+                  disabled={docSaving || !docName.trim() || !docContent.trim()}
+                  className="w-full py-3 text-xs uppercase tracking-widest disabled:opacity-40"
+                  style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}
+                >
+                  {docSaving ? 'Saving…' : '+ Add to Knowledge Base'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
