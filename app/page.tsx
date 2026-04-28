@@ -99,9 +99,9 @@ export default function Home() {
         padding: '1.1rem 1.5rem',
         backdropFilter: 'blur(8px)',
       }}>
-        <span className="font-serif" style={{ fontSize: '1rem', letterSpacing: '0.55em', paddingLeft: '0.55em', color: '#3B2A1A' }}>
+        <Link href="/ops" className="font-serif" style={{ fontSize: '1rem', letterSpacing: '0.55em', paddingLeft: '0.55em', color: '#3B2A1A', textDecoration: 'none', cursor: 'pointer' }}>
           corner
-        </span>
+        </Link>
         <Link href="/setup" style={{
           fontSize: '0.6rem', letterSpacing: '0.28em', textTransform: 'uppercase',
           fontFamily: 'var(--font-dm-sans)', color: '#FAF8F4',
