@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { THEMES, THEME_KEYS } from '@/lib/themes'
 import Link from 'next/link'
@@ -28,6 +29,7 @@ function toSlug(name: string) {
 }
 
 export default function SetupPage() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
 
   const [type, setType] = useState('')
@@ -97,6 +99,7 @@ export default function SetupPage() {
     setSavedName(name.trim())
     setSaving(false)
     setStep(4)
+    setTimeout(() => router.push(`/${slug}/admin`), 1800)
   }
 
   function copyLink(text: string, key: string) {
