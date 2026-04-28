@@ -55,8 +55,9 @@ export default function StaffPage() {
     const { data: cats } = await supabase.from('categories').select('*').eq('shop_id', shopId).order('sort_order')
     if (cats) setCategories(cats)
 
-    if (catIds.length > 0) {
-      const { data: its } = await supabase.from('items').select('*, category:categories(*)').eq('is_active', true).in('category_id', catIds)
+    const freshCatIds = cats?.map(c => c.id) || []
+    if (freshCatIds.length > 0) {
+      const { data: its } = await supabase.from('items').select('*, category:categories(*)').eq('is_active', true).in('category_id', freshCatIds)
       if (its) {
         setItems(its as ItemWithCategory[])
         const weeklyIds = (its as ItemWithCategory[]).filter(i => i.is_weekly && i.can_order).map(i => i.id)
