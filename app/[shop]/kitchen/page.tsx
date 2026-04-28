@@ -86,7 +86,7 @@ export default function KitchenPage() {
         {eightySixes.length > 0 && (
           <div style={{ background: '#2A1010', border: '1px solid rgba(193,113,79,0.35)', borderRadius: '4px', padding: '0.875rem 1.1rem' }}>
             <p style={{ fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)', marginBottom: '0.6rem' }}>
-              86&apos;d · {eightySixes.length}
+              Out of Stock · {eightySixes.length}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {eightySixes.map(e => (

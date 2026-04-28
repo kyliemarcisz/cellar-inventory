@@ -24,6 +24,7 @@ export default function OwnerPage() {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [orderDraft, setOrderDraft] = useState<DraftItem[] | null>(null)
   const [confirmSending, setConfirmSending] = useState(false)
+  const [emailDrafts, setEmailDrafts] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (shopLoading) return
@@ -91,14 +92,54 @@ export default function OwnerPage() {
   }
 
   function openOrderDraft(flagsToOrder: FlagWithSupplier[]) {
-    setOrderDraft(flagsToOrder.map(f => ({
+    const draft = flagsToOrder.map(f => ({
       flagId: f.id,
       itemName: f.item?.name || '',
       note: f.note || '',
       flaggedBy: f.flagged_by,
       supplierEmail: f.item?.category?.supplier_email || null,
       supplierName: f.item?.category?.supplier_name || null,
-    })))
+    }))
+    setOrderDraft(draft)
+    setEmailDrafts({})
+
+    // Group by supplier and auto-generate a draft email for each
+    const bySupplier = new Map<string, { name: string; items: DraftItem[] }>()
+    for (const item of draft) {
+      if (!item.supplierEmail) continue
+      if (!bySupplier.has(item.supplierEmail)) bySupplier.set(item.supplierEmail, { name: item.supplierName || item.supplierEmail, items: [] })
+      bySupplier.get(item.supplierEmail)!.items.push(item)
+    }
+    for (const [email, { name, items }] of bySupplier) {
+      generateEmailDraft(email, name, items)
+    }
+  }
+
+  async function generateEmailDraft(supplierEmail: string, supplierName: string, items: DraftItem[]) {
+    const itemsText = items.map(i => `- ${i.itemName}${i.note ? ` (${i.note})` : ''}`).join('\n')
+    setEmailDrafts(prev => ({ ...prev, [supplierEmail]: '' }))
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Write a short order email from "${shop?.name || 'us'}" to "${supplierName}". We need to reorder:\n\n${itemsText}\n\nInclude a greeting, the order request, and a brief sign-off. Under 80 words. Sound like a real small restaurant owner, not a template.` }],
+          systemPrompt: 'You write concise, professional supplier emails for small restaurants. Be warm and direct.',
+        }),
+      })
+      if (!res.ok) throw new Error('failed')
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let full = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        full += decoder.decode(value)
+        setEmailDrafts(prev => ({ ...prev, [supplierEmail]: full }))
+      }
+    } catch {
+      setEmailDrafts(prev => ({ ...prev, [supplierEmail]: `Hi ${supplierName},\n\nWe're running low on a few things at ${shop?.name || 'our restaurant'} and need to place an order.\n\nItems:\n${itemsText}\n\nCan you let us know availability?\n\nThanks,\n${shop?.name || ''}` }))
+    }
   }
 
   function updateDraftNote(flagId: string, note: string) {
@@ -128,7 +169,7 @@ export default function OwnerPage() {
         await fetch('/api/send-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shopName: shop.name, supplierName: supplier.name, supplierEmail: supplier.email, items: orderItems }),
+          body: JSON.stringify({ shopName: shop.name, supplierName: supplier.name, supplierEmail: supplier.email, items: orderItems, emailBody: emailDrafts[supplier.email] || undefined }),
         })
         await supabase.from('orders').insert({ shop_id: shopId, supplier_name: supplier.name, supplier_email: supplier.email, items: orderItems })
         supplier.items.forEach(i => sentIds.add(i.flagId))
@@ -215,9 +256,34 @@ export default function OwnerPage() {
           <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6 pb-32">
             {draftBySupplier.groups.map(group => (
               <div key={group.email}>
-                <p className="font-serif mb-2.5 px-1" style={{ fontSize: '0.7rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--wine)' }}>
-                  {group.name}
-                </p>
+                <div className="flex items-center justify-between mb-2.5 px-1">
+                  <p className="font-serif" style={{ fontSize: '0.7rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--wine)' }}>
+                    {group.name}
+                  </p>
+                  <span style={{ fontSize: '0.58rem', color: emailDrafts[group.email] !== undefined ? (emailDrafts[group.email] ? 'var(--gold)' : 'var(--muted)') : 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                    {emailDrafts[group.email] === undefined ? '' : emailDrafts[group.email] === '' ? 'Grace is writing…' : 'AI drafted ✦'}
+                  </span>
+                </div>
+
+                {/* AI-drafted email — editable before sending */}
+                <div className="mb-3">
+                  {emailDrafts[group.email] !== undefined ? (
+                    <textarea
+                      rows={5}
+                      value={emailDrafts[group.email]}
+                      onChange={e => setEmailDrafts(prev => ({ ...prev, [group.email]: e.target.value }))}
+                      className="w-full px-3.5 py-3 text-sm focus:outline-none resize-none"
+                      style={{ background: 'var(--cream)', border: '1px solid var(--cream-dark)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', color: 'var(--text)', fontSize: '0.8rem', lineHeight: 1.6 }}
+                      placeholder="Email draft loading…"
+                    />
+                  ) : (
+                    <div className="px-3.5 py-3" style={{ background: 'var(--cream)', border: '1px solid var(--cream-dark)', borderRadius: '4px', minHeight: '5rem' }}>
+                      <p style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.78rem', fontStyle: 'italic' }}>Drafting email…</p>
+                    </div>
+                  )}
+                </div>
+
+                <p className="px-1 mb-1.5" style={{ fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Items</p>
                 <div className="space-y-2">
                   {group.items.map(item => (
                     <div key={item.flagId} style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', padding: '0.875rem 1rem' }}>
@@ -312,7 +378,7 @@ export default function OwnerPage() {
             {eightySixes.length > 0 && (
               <div className="flex items-baseline gap-1.5 px-3.5 py-2.5" style={{ background: 'rgba(193,113,79,0.08)', border: '1px solid rgba(193,113,79,0.2)', borderRadius: '4px' }}>
                 <span style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '1.25rem', fontWeight: 600, color: 'var(--terra)', lineHeight: 1 }}>{eightySixes.length}</span>
-                <span style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.68rem', color: 'var(--terra)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>86&apos;d</span>
+                <span style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.68rem', color: 'var(--terra)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>out of stock</span>
               </div>
             )}
           </div>
@@ -343,7 +409,7 @@ export default function OwnerPage() {
         {eightySixes.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3 px-1">
-              <p className="font-serif" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--terra)' }}>86 Board · {eightySixes.length}</p>
+              <p className="font-serif" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--terra)' }}>Out of Stock · {eightySixes.length}</p>
               <button onClick={clearAllEightySixes} className="text-xs underline" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Clear all</button>
             </div>
             <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -351,7 +417,7 @@ export default function OwnerPage() {
                 <div key={e.id} className="flex items-center gap-3 px-4 py-3" style={{ borderTop: i > 0 ? '1px solid var(--cream-dark)' : undefined }}>
                   <div className="flex-1 min-w-0">
                     <p style={{ fontFamily: 'var(--font-dm-sans)', color: 'var(--text)', fontSize: '0.875rem' }}>{e.item_name}</p>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>86&apos;d by {e.marked_by} · {getTimeAgo(e.marked_at)}{e.note ? ` · "${e.note}"` : ''}</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>marked out by {e.marked_by} · {getTimeAgo(e.marked_at)}{e.note ? ` · "${e.note}"` : ''}</p>
                   </div>
                   <button onClick={() => clearEightySix(e.id)} className="py-1.5 px-3 text-xs uppercase tracking-widest flex-shrink-0"
                     style={{ border: '1px solid var(--cream-dark)', color: 'var(--muted)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.58rem', letterSpacing: '0.2em' }}>Clear</button>

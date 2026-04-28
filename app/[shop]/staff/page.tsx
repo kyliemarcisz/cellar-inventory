@@ -195,14 +195,14 @@ export default function StaffPage() {
           <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', padding: '0.875rem 1rem' }}>
             <div className="flex items-center justify-between mb-1.5">
               <p style={{ fontSize: '0.6rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)' }}>
-                86&apos;d{eightySixes.length > 0 ? ` · ${eightySixes.length}` : ''}
+                Out of Stock{eightySixes.length > 0 ? ` · ${eightySixes.length}` : ''}
               </p>
               <button onClick={() => setShowEightyForm(p => !p)} style={{ fontSize: '0.65rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
-                {showEightyForm ? 'cancel' : '+ 86 item'}
+                {showEightyForm ? 'cancel' : '+ mark out'}
               </button>
             </div>
             {eightySixes.length === 0 && !showEightyForm && (
-              <p style={{ fontSize: '0.78rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', fontStyle: 'italic' }}>Nothing 86&apos;d right now.</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', fontStyle: 'italic' }}>Everything&apos;s available right now.</p>
             )}
             {eightySixes.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -228,7 +228,7 @@ export default function StaffPage() {
                 <button onClick={addEightySix} disabled={!eightyInput.trim() || eightySubmitting}
                   className="w-full py-2.5 text-xs uppercase tracking-widest disabled:opacity-40"
                   style={{ background: 'var(--terra)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.6rem' }}>
-                  {eightySubmitting ? 'Adding...' : '86 it'}
+                  {eightySubmitting ? 'Adding...' : 'Mark Out'}
                 </button>
               </div>
             )}
