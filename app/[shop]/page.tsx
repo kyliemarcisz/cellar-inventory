@@ -34,10 +34,10 @@ export default function ShopLandingPage() {
 
   return (
     <main className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(168deg, #FAF8F4 0%, #EDE4D8 100%)' }}>
-      <header className="text-center" style={{ paddingTop: '3.5rem' }}>
-        <span style={{ fontSize: '0.62rem', letterSpacing: '0.5em', paddingLeft: '0.5em', color: 'var(--muted)', textTransform: 'uppercase', fontFamily: 'var(--font-dm-sans)' }}>
+      <header style={{ paddingTop: '2rem', paddingLeft: '1.5rem' }}>
+        <Link href="/ops" style={{ fontSize: '0.62rem', letterSpacing: '0.5em', paddingLeft: '0.5em', color: 'var(--muted)', textTransform: 'uppercase', fontFamily: 'var(--font-dm-sans)', textDecoration: 'none' }}>
           corner
-        </span>
+        </Link>
       </header>
 
       <div className="flex-1 flex flex-col items-center justify-center text-center px-8" style={{ paddingBottom: '2rem' }}>
