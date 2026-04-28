@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useShop } from '@/lib/shop-context'
 import { useParams } from 'next/navigation'
-import type { Category, Item } from '@/lib/supabase'
+import type { Category, Item, EightySix } from '@/lib/supabase'
 import Link from 'next/link'
 
 type ItemWithCategory = Item & { category: Category }
@@ -28,6 +28,11 @@ export default function StaffPage() {
   const [counts, setCounts] = useState<Record<string, string>>({})
   const [countSubmitting, setCountSubmitting] = useState(false)
   const [countSubmitted, setCountSubmitted] = useState(false)
+  const [eightySixes, setEightySixes] = useState<EightySix[]>([])
+  const [eightyInput, setEightyInput] = useState('')
+  const [eightyNote, setEightyNote] = useState('')
+  const [eightySubmitting, setEightySubmitting] = useState(false)
+  const [showEightyForm, setShowEightyForm] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('staffName')
@@ -35,7 +40,13 @@ export default function StaffPage() {
   }, [])
 
   useEffect(() => {
-    if (!shopLoading && shopId) loadData()
+    if (!shopLoading && shopId) { loadData(); loadEightySixes() }
+
+    const channel = supabase
+      .channel('eighty-sixes-staff')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'eighty_sixes' }, () => loadEightySixes())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopLoading, shopId])
 
@@ -79,6 +90,20 @@ export default function StaffPage() {
     await supabase.from('tasks').insert(Array.from(flagged).map(itemId => ({ item_id: itemId, flagged_by: staffName, note: notes[itemId] || null, urgency: urgency[itemId] || 'normal', status: 'pending' })))
     setFlagged(new Set()); setNotes({}); setUrgency({}); setSubmitted('make'); setSubmitting(false)
     setTimeout(() => setSubmitted(null), 3000)
+  }
+
+  async function loadEightySixes() {
+    if (!shopId) return
+    const { data } = await supabase.from('eighty_sixes').select('*').eq('shop_id', shopId).eq('is_active', true).order('marked_at', { ascending: false })
+    if (data) setEightySixes(data as EightySix[])
+  }
+
+  async function addEightySix() {
+    if (!eightyInput.trim() || !shopId) return
+    setEightySubmitting(true)
+    await supabase.from('eighty_sixes').insert({ shop_id: shopId, item_name: eightyInput.trim(), marked_by: staffName, note: eightyNote.trim() || null, is_active: true })
+    setEightyInput(''); setEightyNote(''); setShowEightyForm(false); setEightySubmitting(false)
+    loadEightySixes()
   }
 
   async function submitCount() {
@@ -162,6 +187,50 @@ export default function StaffPage() {
 
       <div className="px-4 pt-5 space-y-6">
         {tab === 'make' && <p className="text-xs px-4 py-3" style={{ background: 'var(--cream-dark)', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', borderRadius: '4px' }}>These go straight to the kitchen queue.</p>}
+
+        {tab === 'order' && (
+          <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', padding: '0.875rem 1rem' }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <p style={{ fontSize: '0.6rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)' }}>
+                86&apos;d{eightySixes.length > 0 ? ` · ${eightySixes.length}` : ''}
+              </p>
+              <button onClick={() => setShowEightyForm(p => !p)} style={{ fontSize: '0.65rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                {showEightyForm ? 'cancel' : '+ 86 item'}
+              </button>
+            </div>
+            {eightySixes.length === 0 && !showEightyForm && (
+              <p style={{ fontSize: '0.78rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', fontStyle: 'italic' }}>Nothing 86&apos;d right now.</p>
+            )}
+            {eightySixes.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {eightySixes.map(e => (
+                  <span key={e.id} style={{ padding: '3px 8px', background: 'rgba(193,113,79,0.1)', border: '1px solid rgba(193,113,79,0.25)', color: 'var(--terra)', borderRadius: '2px', fontSize: '0.72rem', fontFamily: 'var(--font-dm-sans)' }}>
+                    {e.item_name}{e.note ? ` · ${e.note}` : ''}
+                  </span>
+                ))}
+              </div>
+            )}
+            {showEightyForm && (
+              <div className={`${eightySixes.length > 0 ? 'mt-3' : ''} space-y-2`}>
+                <input className="w-full px-3 py-2.5 text-sm focus:outline-none"
+                  style={{ background: 'var(--cream)', border: '1px solid var(--cream-dark)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', color: 'var(--text)' }}
+                  placeholder="Item name (e.g. Salmon, Oat Milk…)"
+                  value={eightyInput} onChange={e => setEightyInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addEightySix()}
+                  autoFocus />
+                <input className="w-full px-3 py-2 text-sm focus:outline-none"
+                  style={{ background: 'var(--cream)', border: '1px solid var(--cream-dark)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', color: 'var(--text)' }}
+                  placeholder="Note (optional)"
+                  value={eightyNote} onChange={e => setEightyNote(e.target.value)} />
+                <button onClick={addEightySix} disabled={!eightyInput.trim() || eightySubmitting}
+                  className="w-full py-2.5 text-xs uppercase tracking-widest disabled:opacity-40"
+                  style={{ background: 'var(--terra)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.6rem' }}>
+                  {eightySubmitting ? 'Adding...' : '86 it'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {weeklyItems.length > 0 && (
           <div>

@@ -4,17 +4,18 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useShop } from '@/lib/shop-context'
 import { useParams } from 'next/navigation'
-import type { Flag } from '@/lib/supabase'
+import type { Flag, EightySix } from '@/lib/supabase'
 import Link from 'next/link'
 
 type FlagWithSupplier = Flag & { item: { name: string; category: { name: string; supplier_name: string | null; supplier_email: string | null } } }
 type BelowParItem = { id: string; name: string; par_level: number; par_unit: string; current_qty: number; category_name: string; counted_by: string; counted_at: string; supplier_email: string | null; supplier_name: string | null }
 
 export default function OwnerPage() {
-  const { shop, itemIds, loading: shopLoading, notFound } = useShop()
+  const { shop, shopId, itemIds, loading: shopLoading, notFound } = useShop()
   const { shop: slug } = useParams<{ shop: string }>()
   const [flags, setFlags] = useState<FlagWithSupplier[]>([])
   const [belowPar, setBelowPar] = useState<BelowParItem[]>([])
+  const [eightySixes, setEightySixes] = useState<EightySix[]>([])
   const [loading, setLoading] = useState(true)
   const [emailsSent, setEmailsSent] = useState<Set<string>>(new Set())
   const [emailError, setEmailError] = useState<string | null>(null)
@@ -23,13 +24,33 @@ export default function OwnerPage() {
     if (shopLoading) return
     loadFlags()
     loadBelowPar()
+    loadEightySixes()
     const channel = supabase
-      .channel('flags-realtime')
+      .channel('owner-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'flags' }, () => loadFlags())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'eighty_sixes' }, () => loadEightySixes())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopLoading, itemIds.length])
+  }, [shopLoading, itemIds.length, shopId])
+
+  async function loadEightySixes() {
+    if (!shopId) return
+    const { data } = await supabase.from('eighty_sixes').select('*').eq('shop_id', shopId).eq('is_active', true).order('marked_at', { ascending: false })
+    if (data) setEightySixes(data as EightySix[])
+  }
+
+  async function clearEightySix(id: string) {
+    await supabase.from('eighty_sixes').update({ is_active: false }).eq('id', id)
+    setEightySixes(prev => prev.filter(e => e.id !== id))
+  }
+
+  async function clearAllEightySixes() {
+    const ids = eightySixes.map(e => e.id)
+    if (!ids.length) return
+    await supabase.from('eighty_sixes').update({ is_active: false }).in('id', ids)
+    setEightySixes([])
+  }
 
   async function loadBelowPar() {
     if (itemIds.length === 0) { setBelowPar([]); return }
@@ -182,6 +203,33 @@ export default function OwnerPage() {
                       </div>
                     </div>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {eightySixes.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <p className="font-serif" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--terra)' }}>
+                86 Board · {eightySixes.length}
+              </p>
+              <button onClick={clearAllEightySixes} className="text-xs underline" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Clear all</button>
+            </div>
+            <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>
+              {eightySixes.map((e, i) => (
+                <div key={e.id} className="flex items-center gap-3 px-4 py-3" style={{ borderTop: i > 0 ? '1px solid var(--cream-dark)' : undefined }}>
+                  <div className="flex-1 min-w-0">
+                    <p style={{ fontFamily: 'var(--font-dm-sans)', color: 'var(--text)', fontSize: '0.875rem' }}>{e.item_name}</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                      86&apos;d by {e.marked_by} · {getTimeAgo(e.marked_at)}{e.note ? ` · "${e.note}"` : ''}
+                    </p>
+                  </div>
+                  <button onClick={() => clearEightySix(e.id)} className="py-1.5 px-3 text-xs uppercase tracking-widest flex-shrink-0"
+                    style={{ border: '1px solid var(--cream-dark)', color: 'var(--muted)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.58rem', letterSpacing: '0.2em' }}>
+                    Clear
+                  </button>
                 </div>
               ))}
             </div>

@@ -71,6 +71,16 @@ export type Task = {
   item?: Item & { category?: Category }
 }
 
+export type EightySix = {
+  id: string
+  shop_id: string
+  item_name: string
+  marked_by: string
+  marked_at: string
+  note: string | null
+  is_active: boolean
+}
+
 export type ShopDocument = {
   id: string
   shop_id: string

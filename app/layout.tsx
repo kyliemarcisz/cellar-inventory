@@ -27,8 +27,14 @@ const cormorantGaramond = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "The Cellar — San Clemente",
-  description: "Wine, Music, Great Food + A Coffee Bar.",
+  title: "Corner",
+  description: "Back-of-house intelligence for restaurants.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Corner",
+  },
 };
 
 export default function RootLayout({
@@ -41,6 +47,10 @@ export default function RootLayout({
       lang="en"
       className={`${dancingScript.variable} ${bebasNeue.variable} ${dmSans.variable} ${cormorantGaramond.variable} h-full antialiased`}
     >
+      <head>
+        <meta name="theme-color" content="#3B2A1A" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

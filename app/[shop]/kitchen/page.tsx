@@ -4,27 +4,36 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useShop } from '@/lib/shop-context'
 import { useParams } from 'next/navigation'
-import type { Task } from '@/lib/supabase'
+import type { Task, EightySix } from '@/lib/supabase'
 import Link from 'next/link'
 
 export default function KitchenPage() {
-  const { itemIds, loading: shopLoading, notFound } = useShop()
+  const { shopId, itemIds, loading: shopLoading, notFound } = useShop()
   const { shop: slug } = useParams<{ shop: string }>()
   const [tasks, setTasks] = useState<Task[]>([])
+  const [eightySixes, setEightySixes] = useState<EightySix[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (shopLoading) return
     loadTasks()
+    loadEightySixes()
 
     const channel = supabase
-      .channel('tasks-realtime')
+      .channel('kitchen-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => loadTasks())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'eighty_sixes' }, () => loadEightySixes())
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopLoading, itemIds.length])
+  }, [shopLoading, itemIds.length, shopId])
+
+  async function loadEightySixes() {
+    if (!shopId) return
+    const { data } = await supabase.from('eighty_sixes').select('*').eq('shop_id', shopId).eq('is_active', true).order('marked_at', { ascending: false })
+    if (data) setEightySixes(data as EightySix[])
+  }
 
   async function loadTasks() {
     if (itemIds.length === 0) { setTasks([]); setLoading(false); return }
@@ -67,6 +76,22 @@ export default function KitchenPage() {
       </div>
 
       <div className="px-4 pt-6 space-y-8">
+        {eightySixes.length > 0 && (
+          <div style={{ background: '#2A1010', border: '1px solid rgba(193,113,79,0.35)', borderRadius: '4px', padding: '0.875rem 1.1rem' }}>
+            <p style={{ fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)', marginBottom: '0.6rem' }}>
+              86&apos;d · {eightySixes.length}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {eightySixes.map(e => (
+                <div key={e.id} style={{ padding: '4px 10px', background: 'rgba(193,113,79,0.15)', border: '1px solid rgba(193,113,79,0.3)', borderRadius: '2px' }}>
+                  <span style={{ color: 'var(--cream)', fontSize: '0.82rem', fontFamily: 'var(--font-dm-sans)' }}>{e.item_name}</span>
+                  {e.note && <span style={{ color: 'var(--muted)', fontSize: '0.72rem', fontFamily: 'var(--font-dm-sans)' }}> · {e.note}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {tasks.length === 0 && (
           <div className="text-center py-28">
             <div className="w-14 h-14 flex items-center justify-center mx-auto mb-6 text-xl" style={{ border: '1px solid rgba(196,168,130,0.3)', color: 'var(--gold)', borderRadius: '50%' }}>✓</div>
