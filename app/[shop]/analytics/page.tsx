@@ -13,7 +13,7 @@ interface FlagRow { item_id: string; flagged_by: string; flagged_at: string; sta
 interface TaskRow { item_id: string; flagged_by: string; flagged_at: string; urgency: string; status: string; item: { name: string; category: { name: string } | null } | null }
 
 export default function AnalyticsPage() {
-  const { itemIds, loading: shopLoading, notFound } = useShop()
+  const { shopId, loading: shopLoading, notFound } = useShop()
   const { shop: slug } = useParams<{ shop: string }>()
   const [period, setPeriod] = useState<Period>('30d')
   const [flags, setFlags] = useState<FlagRow[]>([])
@@ -22,18 +22,27 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!shopLoading) load(period)
+    if (!shopLoading && shopId) load(period)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopLoading, period, itemIds.length])
+  }, [shopLoading, period, shopId])
 
   async function load(p: Period) {
-    if (itemIds.length === 0) { setFlags([]); setTasks([]); setPendingNow(0); setLoading(false); return }
+    if (!shopId) { setFlags([]); setTasks([]); setPendingNow(0); setLoading(false); return }
     setLoading(true)
+
+    // Fetch fresh IDs directly — context itemIds can be stale if items were added after mount
+    const { data: cats } = await supabase.from('categories').select('id').eq('shop_id', shopId)
+    const freshCatIds = cats?.map((c: { id: string }) => c.id) || []
+    if (freshCatIds.length === 0) { setFlags([]); setTasks([]); setPendingNow(0); setLoading(false); return }
+    const { data: freshItems } = await supabase.from('items').select('id').in('category_id', freshCatIds)
+    const freshItemIds = freshItems?.map((i: { id: string }) => i.id) || []
+    if (freshItemIds.length === 0) { setFlags([]); setTasks([]); setPendingNow(0); setLoading(false); return }
+
     const since = p === 'all' ? null : new Date(Date.now() - (p === '7d' ? 7 : 30) * 86400000).toISOString()
 
-    let flagQ = supabase.from('flags').select('item_id, flagged_by, flagged_at, status, item:items(name, is_weekly, category:categories(name))').in('item_id', itemIds)
-    let taskQ = supabase.from('tasks').select('item_id, flagged_by, flagged_at, urgency, status, item:items(name, category:categories(name))').in('item_id', itemIds)
-    const pendingQ = supabase.from('flags').select('id', { count: 'exact', head: true }).in('item_id', itemIds).eq('status', 'pending')
+    let flagQ = supabase.from('flags').select('item_id, flagged_by, flagged_at, status, item:items(name, is_weekly, category:categories(name))').in('item_id', freshItemIds)
+    let taskQ = supabase.from('tasks').select('item_id, flagged_by, flagged_at, urgency, status, item:items(name, category:categories(name))').in('item_id', freshItemIds)
+    const pendingQ = supabase.from('flags').select('id', { count: 'exact', head: true }).in('item_id', freshItemIds).eq('status', 'pending')
 
     if (since) { flagQ = flagQ.gte('flagged_at', since); taskQ = taskQ.gte('flagged_at', since) }
     const [{ data: f }, { data: t }, { count }] = await Promise.all([flagQ, taskQ, pendingQ])
