@@ -27,8 +27,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
 
   // Menu tab state
+  const [menuInputMode, setMenuInputMode] = useState<'text' | 'pdf'>('text')
   const [menuText, setMenuText] = useState('')
   const [savedMenu, setSavedMenu] = useState('')
+  const [menuFile, setMenuFile] = useState<File | null>(null)
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState('')
   const [parseSummary, setParseSummary] = useState('')
@@ -116,20 +118,35 @@ export default function AdminPage() {
   }
 
   async function parseMenu() {
-    if (!menuText.trim()) return
+    if (menuInputMode === 'text' && !menuText.trim()) return
+    if (menuInputMode === 'pdf' && !menuFile) return
     setParsing(true); setParseError(''); setParsedCategories([]); setParseSummary('')
-    await saveMenu()
+
+    if (menuInputMode === 'text') await saveMenu()
 
     try {
+      let body: Record<string, unknown> = {
+        shopName: shop?.name || 'this restaurant',
+        venueType: shop?.type || 'restaurant',
+        existingCategories: categories.map(c => c.name),
+      }
+
+      if (menuInputMode === 'pdf' && menuFile) {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = e => resolve((e.target?.result as string).split(',')[1])
+          reader.onerror = reject
+          reader.readAsDataURL(menuFile)
+        })
+        body = { ...body, pdfBase64: base64 }
+      } else {
+        body = { ...body, menuText: menuText.trim() }
+      }
+
       const res = await fetch('/api/parse-menu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          menuText: menuText.trim(),
-          shopName: shop?.name || 'this restaurant',
-          venueType: shop?.type || 'restaurant',
-          existingCategories: categories.map(c => c.name),
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (data.error) { setParseError(data.error); return }
@@ -304,29 +321,79 @@ export default function AdminPage() {
             <div>
               <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.62rem' }}>Menu & Drinks List</p>
               <p className="text-sm mb-3" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
-                Paste your menu. Corner will read it and build your inventory automatically — and your AI personas will know every item on it.
+                Upload your menu — Corner reads it and builds your inventory automatically. Your AI personas will know every item on it.
               </p>
-              <textarea
-                className="w-full px-4 py-3 text-sm focus:outline-none resize-none"
-                style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', minHeight: '220px' }}
-                placeholder={"Paste your full menu here — food, wine list, cocktails, spirits, anything your team needs to track.\n\nExample:\n\nRed Wine\nBarolo Castiglione 2019 — $18 / $68\nAmarone della Valpolicella 2017 — $22 / $84\n\nCocktails\nNegroni — Campari, sweet vermouth, gin — $16\nAperol Spritz — $14"}
-                value={menuText}
-                onChange={e => setMenuText(e.target.value)}
-              />
-              <div className="flex gap-2 mt-2">
-                <button onClick={saveMenu} disabled={!menuText.trim() || menuText === savedMenu} className="px-4 py-2.5 text-xs uppercase tracking-widest disabled:opacity-40"
-                  style={{ border: '1px solid var(--cream-dark)', color: 'var(--muted)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.62rem' }}>
-                  Save
-                </button>
-                <button onClick={parseMenu} disabled={parsing || !menuText.trim()} className="flex-1 py-2.5 text-xs uppercase tracking-widest disabled:opacity-40"
-                  style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
-                  {parsing ? 'Reading menu…' : '✦ Parse with AI →'}
-                </button>
+
+              {/* Mode toggle */}
+              <div className="flex gap-1 p-1 mb-3" style={{ background: 'var(--cream-dark)', borderRadius: '4px' }}>
+                {(['text', 'pdf'] as const).map(mode => (
+                  <button key={mode} onClick={() => { setMenuInputMode(mode); setMenuFile(null); setParseError('') }}
+                    className="flex-1 py-2 text-xs uppercase tracking-widest transition-all"
+                    style={menuInputMode === mode
+                      ? { background: 'var(--wine)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.62rem' }
+                      : { color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.62rem' }}>
+                    {mode === 'text' ? 'Paste Text' : '↑ Upload PDF'}
+                  </button>
+                ))}
               </div>
-              {parseError && <p className="text-xs mt-2 px-3 py-2" style={{ background: 'rgba(193,113,79,0.08)', color: 'var(--terra)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}>{parseError}</p>}
-              {savedMenu && menuText === savedMenu && !parsedCategories.length && (
-                <p className="text-xs mt-2" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>✓ Menu saved — personas will use this as context.</p>
+
+              {menuInputMode === 'text' ? (
+                <>
+                  <textarea
+                    className="w-full px-4 py-3 text-sm focus:outline-none resize-none"
+                    style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', minHeight: '220px' }}
+                    placeholder={"Paste your full menu here — food, wine list, cocktails, spirits, anything your team tracks.\n\nExample:\n\nRed Wine\nBarolo Castiglione 2019 — $18 / $68\nAmarone della Valpolicella 2017 — $22 / $84\n\nCocktails\nNegroni — Campari, sweet vermouth, gin — $16"}
+                    value={menuText}
+                    onChange={e => setMenuText(e.target.value)}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={saveMenu} disabled={!menuText.trim() || menuText === savedMenu} className="px-4 py-2.5 text-xs uppercase tracking-widest disabled:opacity-40"
+                      style={{ border: '1px solid var(--cream-dark)', color: 'var(--muted)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.62rem' }}>
+                      Save
+                    </button>
+                    <button onClick={parseMenu} disabled={parsing || !menuText.trim()} className="flex-1 py-2.5 text-xs uppercase tracking-widest disabled:opacity-40"
+                      style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
+                      {parsing ? 'Reading menu…' : '✦ Parse with AI →'}
+                    </button>
+                  </div>
+                  {savedMenu && menuText === savedMenu && !parsedCategories.length && (
+                    <p className="text-xs mt-2" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>✓ Menu saved — personas will use this as context.</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <label className="block cursor-pointer" style={{ borderRadius: '4px' }}>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={e => { setMenuFile(e.target.files?.[0] ?? null); setParseError('') }}
+                    />
+                    <div className="flex flex-col items-center justify-center py-10 px-4"
+                      style={{ background: 'white', border: `2px dashed ${menuFile ? 'var(--wine)' : 'var(--cream-dark)'}`, borderRadius: '4px', transition: 'border-color 0.15s' }}>
+                      {menuFile ? (
+                        <>
+                          <p className="text-2xl mb-2">📄</p>
+                          <p className="text-sm font-medium text-center" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)' }}>{menuFile.name}</p>
+                          <p className="text-xs mt-1" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>{(menuFile.size / 1024).toFixed(0)} KB · tap to change</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-3xl mb-2" style={{ opacity: 0.4 }}>↑</p>
+                          <p className="text-sm text-center" style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}>Tap to select a PDF</p>
+                          <p className="text-xs mt-1 text-center" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Your menu, drinks list, or price sheet</p>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                  <button onClick={parseMenu} disabled={parsing || !menuFile} className="w-full mt-2 py-2.5 text-xs uppercase tracking-widest disabled:opacity-40"
+                    style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
+                    {parsing ? 'Reading PDF…' : '✦ Parse with AI →'}
+                  </button>
+                </>
               )}
+
+              {parseError && <p className="text-xs mt-2 px-3 py-2" style={{ background: 'rgba(193,113,79,0.08)', color: 'var(--terra)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}>{parseError}</p>}
             </div>
 
             {/* Parse results */}
