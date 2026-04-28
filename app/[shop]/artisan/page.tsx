@@ -9,21 +9,39 @@ import Link from 'next/link'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
+const DEFAULT_PERSONA: AIPersona = {
+  id: '__grace__',
+  shop_id: '',
+  name: 'Grace',
+  title: 'Your restaurant AI',
+  emoji: '✦',
+  theme: 'dark',
+  system_prompt: "You are Grace, Corner's AI assistant for this restaurant. Be concise and practical — staff are busy. Answer in 1–3 sentences unless detail is genuinely needed. Speak with warmth and directness, like a senior colleague who knows the kitchen cold. If nothing is flagged, say so confidently. Don't pad responses.",
+  quick_prompts: ["What's running low?", "What's 86'd right now?", "What needs to be ordered?", "What's in the kitchen queue?"],
+  sort_order: 0,
+  is_active: true,
+}
+
 export default function ArtisanPage() {
-  const { shopId, loading: shopLoading, notFound } = useShop()
+  const { shopId, shop, loading: shopLoading, notFound } = useShop()
   const { shop: slug } = useParams<{ shop: string }>()
   const [personas, setPersonas] = useState<AIPersona[]>([])
-  const [activeId, setActiveId] = useState<string | null>(null)
+  const [activeId, setActiveId] = useState<string>(DEFAULT_PERSONA.id)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [menuContext, setMenuContext] = useState<string | null>(null)
+  const [inventoryContext, setInventoryContext] = useState('')
+  const [contextLoaded, setContextLoaded] = useState(false)
   const [documents, setDocuments] = useState<ShopDocument[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!shopLoading && shopId) { loadPersonas(); loadMenu(); loadDocuments() }
+    if (!shopLoading && shopId) {
+      loadPersonas()
+      loadDocuments()
+      loadInventoryContext()
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopLoading, shopId])
 
@@ -32,14 +50,11 @@ export default function ArtisanPage() {
   async function loadPersonas() {
     if (!shopId) return
     const { data } = await supabase.from('ai_personas').select('*').eq('shop_id', shopId).eq('is_active', true).order('sort_order')
-    if (data && data.length > 0) { setPersonas(data as AIPersona[]); setActiveId(data[0].id) }
+    if (data && data.length > 0) {
+      setPersonas(data as AIPersona[])
+      setActiveId(data[0].id)
+    }
     setLoading(false)
-  }
-
-  async function loadMenu() {
-    if (!shopId) return
-    const { data } = await supabase.from('shops').select('menu_text').eq('id', shopId).single()
-    if (data?.menu_text) setMenuContext(data.menu_text)
   }
 
   async function loadDocuments() {
@@ -48,111 +63,241 @@ export default function ArtisanPage() {
     if (data) setDocuments(data as ShopDocument[])
   }
 
-  function switchPersona(id: string) {
-    if (id === activeId) return
-    setActiveId(id); setMessages([]); setInput('')
+  async function loadInventoryContext() {
+    if (!shopId) return
+
+    const { data: cats } = await supabase.from('categories').select('id').eq('shop_id', shopId)
+    const catIds = cats?.map((c: { id: string }) => c.id) || []
+    const { data: its } = catIds.length
+      ? await supabase.from('items').select('id, name, par_level, par_unit').in('category_id', catIds).eq('is_active', true)
+      : { data: [] as { id: string; name: string; par_level: number | null; par_unit: string | null }[] }
+    const itemIds = (its || []).map(i => i.id)
+
+    const lines: string[] = ['LIVE RESTAURANT DATA:\n']
+
+    if (itemIds.length) {
+      const { data: flags } = await supabase.from('flags')
+        .select('*, item:items(name, category:categories(name))')
+        .in('item_id', itemIds).in('status', ['pending', 'ordered'])
+      const pending = (flags || []).filter((f: { status: string }) => f.status === 'pending')
+      const ordered = (flags || []).filter((f: { status: string }) => f.status === 'ordered')
+      if (pending.length) {
+        lines.push('FLAGGED LOW (needs reorder):')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pending.forEach((f: any) => lines.push(`- ${f.item?.name} (${f.item?.category?.name}) — by ${f.flagged_by}${f.note ? `, "${f.note}"` : ''}`))
+      } else {
+        lines.push('FLAGGED LOW: none')
+      }
+      if (ordered.length) {
+        lines.push('\nORDERED (awaiting delivery):')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ordered.forEach((f: any) => lines.push(`- ${f.item?.name}`))
+      }
+    } else {
+      lines.push('FLAGGED LOW: none')
+    }
+
+    const { data: eighties } = await supabase.from('eighty_sixes').select('*').eq('shop_id', shopId).eq('is_active', true)
+    if (eighties?.length) {
+      lines.push("\n86'D (unavailable right now):")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      eighties.forEach((e: any) => lines.push(`- ${e.item_name}${e.note ? ` ("${e.note}")` : ''} — by ${e.marked_by}`))
+    } else {
+      lines.push("\n86'D: nothing currently")
+    }
+
+    if (itemIds.length) {
+      const { data: tasks } = await supabase.from('tasks')
+        .select('*, item:items(name)')
+        .in('item_id', itemIds).in('status', ['pending', 'in_progress'])
+        .order('urgency', { ascending: false })
+      if (tasks?.length) {
+        lines.push('\nKITCHEN QUEUE:')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        tasks.forEach((t: any) => lines.push(`- ${t.item?.name} [${t.urgency}${t.status === 'in_progress' ? ', in progress' : ''}]${t.note ? ` — "${t.note}"` : ''}`))
+      } else {
+        lines.push('\nKITCHEN QUEUE: all clear')
+      }
+    }
+
+    const itemsWithPar = (its || []).filter(i => i.par_level != null)
+    if (itemsWithPar.length) {
+      const { data: counts } = await supabase.from('inventory_counts')
+        .select('item_id, quantity').in('item_id', itemsWithPar.map(i => i.id)).order('counted_at', { ascending: false })
+      const latest: Record<string, number> = {}
+      for (const c of (counts || [])) { if (!(c.item_id in latest)) latest[c.item_id] = c.quantity }
+      const belowPar = itemsWithPar.filter(i => i.id in latest && latest[i.id] < (i.par_level as number))
+      if (belowPar.length) {
+        lines.push('\nBELOW PAR:')
+        belowPar.forEach(i => lines.push(`- ${i.name}: ${latest[i.id]} / ${i.par_level} ${i.par_unit || 'units'}`))
+      }
+    }
+
+    setInventoryContext(lines.join('\n'))
+    setContextLoaded(true)
   }
 
-  const persona = personas.find(p => p.id === activeId)
+  function switchPersona(id: string) {
+    if (id === activeId) return
+    setActiveId(id)
+    setMessages([])
+    setInput('')
+  }
+
+  const allPersonas = personas.length > 0 ? personas : [DEFAULT_PERSONA]
+  const persona = allPersonas.find(p => p.id === activeId) || allPersonas[0]
+
+  const buildSystemPrompt = () => {
+    const base = persona.system_prompt.replace('this restaurant', shop?.name || 'this restaurant')
+    return inventoryContext
+      ? `${base}\n\nYou have access to the following live restaurant data. Use it to answer accurately:\n\n${inventoryContext}`
+      : base
+  }
 
   async function send(text: string) {
     if (!text.trim() || streaming || !persona) return
-    setMessages(prev => [...prev, { role: 'user', content: text.trim() }])
+    const userMsg: Message = { role: 'user', content: text.trim() }
+    const nextMessages = [...messages, userMsg]
+    setMessages(nextMessages)
     setInput('')
     setStreaming(true)
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text.trim(), systemPrompt: persona.system_prompt, menuContext: menuContext || undefined, documents: documents.length ? documents.map(d => ({ name: d.name, content: d.content })) : undefined }) })
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: nextMessages,
+          systemPrompt: buildSystemPrompt(),
+          documents: documents.length ? documents.map(d => ({ name: d.name, content: d.content })) : undefined,
+        }),
+      })
+      if (!res.ok) throw new Error('failed')
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
-      let done = false
-      while (!done) {
-        const { value, done: d } = await reader.read()
-        done = d
-        if (value) {
-          const chunk = decoder.decode(value)
-          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { ...u[u.length - 1], content: u[u.length - 1].content + chunk }; return u })
-        }
+      let full = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        full += decoder.decode(value)
+        setMessages(prev => prev.map((m, i) => i === prev.length - 1 ? { ...m, content: full } : m))
       }
     } catch {
-      setMessages(prev => { const u = [...prev]; u[u.length - 1] = { ...u[u.length - 1], content: 'Sorry, something went wrong.' }; return u })
-    } finally { setStreaming(false) }
+      setMessages(prev => prev.map((m, i) => i === prev.length - 1 ? { ...m, content: 'Something went wrong. Try again.' } : m))
+    }
+    setStreaming(false)
   }
 
   if (notFound || shopLoading || loading) return (
-    <main className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cream)' }}>
-      <p className="font-serif" style={{ color: 'var(--muted)', fontStyle: 'italic' }}>{notFound ? 'Shop not found.' : 'a moment...'}</p>
-    </main>
-  )
-
-  if (personas.length === 0) return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: 'var(--cream)' }}>
-      <p className="font-serif mb-2" style={{ fontSize: '1.4rem', fontWeight: 300, color: 'var(--text)' }}>No personas set up yet.</p>
-      <Link href={`/${slug}/admin`} className="text-xs underline uppercase tracking-widest" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>Go to Admin</Link>
+    <main className="min-h-screen flex items-center justify-center" style={{ background: 'var(--wine-dark)' }}>
+      <p className="font-serif" style={{ color: 'var(--gold)', fontStyle: 'italic' }}>{notFound ? 'Shop not found.' : 'a moment...'}</p>
     </main>
   )
 
   return (
-    <main className="min-h-screen flex flex-col" style={{ background: 'var(--cream)' }}>
-      <div className="sticky top-0 backdrop-blur border-b px-4 py-3 z-10" style={{ background: 'rgba(245,239,224,0.96)', borderColor: 'var(--cream-dark)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="font-serif" style={{ fontSize: '1.4rem', fontWeight: 300, color: 'var(--text)' }}>Grace</h1>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>{persona ? `Ask ${persona.name} anything` : 'Select a persona'}</p>
-          </div>
-          <Link href={`/${slug}`} className="text-xs uppercase tracking-widest" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>← Home</Link>
-        </div>
-        <div className="flex gap-1.5 p-1" style={{ background: 'var(--cream-dark)', borderRadius: '4px' }}>
-          {personas.map(p => (
-            <button key={p.id} onClick={() => switchPersona(p.id)} className="flex-1 py-2.5 text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-1.5"
-              style={activeId === p.id ? { background: 'var(--wine)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.62rem' } : { color: 'var(--text)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.62rem' }}>
-              {p.emoji} {p.name}
-            </button>
-          ))}
-        </div>
-      </div>
+    <main className="flex flex-col" style={{ background: 'var(--wine-dark)', height: '100dvh' }}>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-36 space-y-4">
-        {messages.length === 0 && persona && (
-          <div className="pt-6">
-            <div className="text-center mb-6">
-              <div className="text-5xl mb-3">{persona.emoji}</div>
-              <p className="font-serif" style={{ fontSize: '1.6rem', fontWeight: 300, color: 'var(--text)' }}>{persona.name}</p>
-              <p className="text-sm mt-1" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>{persona.title}</p>
-            </div>
-            {persona.quick_prompts.length > 0 && (
-              <div className="space-y-1.5">
-                {persona.quick_prompts.map((prompt, i) => (
-                  <button key={i} onClick={() => send(prompt)} className="w-full text-left px-4 py-3 text-sm" style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}>{prompt}</button>
-                ))}
-              </div>
-            )}
+      {/* Header */}
+      <div className="flex-shrink-0 border-b px-4 py-3 z-10" style={{ background: 'rgba(30,20,16,0.97)', borderColor: 'rgba(196,168,130,0.12)' }}>
+        <div className="flex items-center justify-between mb-2.5">
+          <h1 className="font-serif" style={{ fontSize: '1.2rem', fontWeight: 300, color: 'var(--cream)' }}>
+            {persona.name} <span style={{ color: 'var(--gold)', fontSize: '0.75rem' }}>{persona.emoji}</span>
+          </h1>
+          <div className="flex items-center gap-3">
+            <span className="text-xs uppercase tracking-widest" style={{ color: contextLoaded ? 'var(--gold)' : 'var(--muted)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.55rem', letterSpacing: '0.2em' }}>
+              {contextLoaded ? 'live' : '…'}
+            </span>
+            <Link href={`/${slug}`} className="text-xs uppercase tracking-widest" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>← Home</Link>
+          </div>
+        </div>
+        {allPersonas.length > 1 && (
+          <div className="flex gap-1.5 p-1" style={{ background: 'rgba(196,168,130,0.07)', borderRadius: '4px' }}>
+            {allPersonas.map(p => (
+              <button key={p.id} onClick={() => switchPersona(p.id)}
+                className="flex-1 py-2 text-xs uppercase tracking-widest flex items-center justify-center gap-1.5"
+                style={activeId === p.id
+                  ? { background: 'rgba(196,168,130,0.18)', color: 'var(--gold)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.6rem' }
+                  : { color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.6rem' }}>
+                {p.emoji} {p.name}
+              </button>
+            ))}
           </div>
         )}
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5">
+        {messages.length === 0 && (
+          <div className="text-center pt-8">
+            <div className="w-12 h-12 flex items-center justify-center mx-auto mb-5 font-serif"
+              style={{ border: '1px solid rgba(196,168,130,0.35)', color: 'var(--gold)', borderRadius: '50%', fontSize: '1rem' }}>
+              {persona.emoji}
+            </div>
+            <p className="font-serif" style={{ color: 'var(--cream)', fontSize: '1.5rem', fontWeight: 300 }}>Ask me anything.</p>
+            <p className="text-sm mt-1.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>{persona.title}</p>
+          </div>
+        )}
+
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'assistant' && persona && <span className="text-xl mr-2 mt-1 flex-shrink-0">{persona.emoji}</span>}
-            <div className="max-w-[85%] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap"
-              style={msg.role === 'user'
-                ? { background: 'var(--wine)', color: 'var(--cream)', borderRadius: '12px 12px 3px 12px', fontFamily: 'var(--font-dm-sans)' }
-                : { background: 'white', color: 'var(--text)', border: '1px solid var(--cream-dark)', borderRadius: '3px 12px 12px 12px', fontFamily: 'var(--font-dm-sans)' }}>
-              {msg.content}
-              {streaming && i === messages.length - 1 && msg.role === 'assistant' && msg.content === '' && <span className="inline-block w-2 h-4 bg-current opacity-40 animate-pulse" />}
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-start gap-2.5`}>
+            {msg.role === 'assistant' && (
+              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5"
+                style={{ border: '1px solid rgba(196,168,130,0.3)', color: 'var(--gold)', borderRadius: '50%', fontSize: '0.65rem' }}>
+                {persona.emoji}
+              </div>
+            )}
+            <div style={msg.role === 'user'
+              ? { maxWidth: '78%', padding: '0.65rem 1rem', background: 'rgba(196,168,130,0.1)', border: '1px solid rgba(196,168,130,0.18)', borderRadius: '12px 12px 2px 12px', fontFamily: 'var(--font-dm-sans)', color: 'var(--cream)', fontSize: '0.875rem', lineHeight: 1.5 }
+              : { maxWidth: '85%' }
+            }>
+              {msg.role === 'assistant'
+                ? <p className="font-serif" style={{ fontSize: '1rem', fontWeight: 300, lineHeight: 1.7, color: msg.content ? 'var(--cream)' : 'var(--muted)', whiteSpace: 'pre-wrap' }}>
+                    {msg.content || (streaming ? '…' : '')}
+                  </p>
+                : msg.content
+              }
             </div>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-4" style={{ background: 'linear-gradient(to top, var(--cream) 65%, transparent)' }}>
-        <div className="flex gap-2">
-          <input className="flex-1 px-4 py-3 text-sm focus:outline-none" style={{ background: 'white', border: '1px solid var(--cream-dark)', color: 'var(--text)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }} placeholder={persona ? `Ask ${persona.name}...` : 'Ask...'} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send(input))} disabled={streaming} />
-          <button onClick={() => send(input)} disabled={streaming || !input.trim()} className="px-5 font-semibold disabled:opacity-40" style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px' }}>
-            {streaming ? '···' : '↑'}
-          </button>
+      {/* Quick prompts — empty state only */}
+      {messages.length === 0 && contextLoaded && (
+        <div className="flex-shrink-0 px-4 pb-3 flex flex-wrap gap-2">
+          {persona.quick_prompts.map((p, i) => (
+            <button key={i} onClick={() => send(p)}
+              className="px-3.5 py-2 text-xs uppercase tracking-widest"
+              style={{ border: '1px solid rgba(196,168,130,0.2)', color: 'var(--muted)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.18em', background: 'transparent' }}>
+              {p}
+            </button>
+          ))}
         </div>
+      )}
+
+      {/* Input */}
+      <div className="flex-shrink-0 border-t px-4 py-3 flex gap-2 items-end"
+        style={{ borderColor: 'rgba(196,168,130,0.12)', background: 'rgba(22,14,10,0.98)' }}>
+        <textarea
+          rows={1}
+          className="flex-1 resize-none focus:outline-none px-3.5 py-2.5"
+          style={{ background: 'rgba(196,168,130,0.06)', border: '1px solid rgba(196,168,130,0.15)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', color: 'var(--cream)', fontSize: '0.875rem', lineHeight: 1.5 }}
+          placeholder={`Ask ${persona.name}…`}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) } }}
+          disabled={streaming}
+        />
+        <button
+          onClick={() => send(input)}
+          disabled={streaming || !input.trim()}
+          className="px-4 py-2.5 text-xs uppercase tracking-widest disabled:opacity-30 flex-shrink-0"
+          style={{ background: 'var(--gold)', color: 'var(--wine-dark)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em' }}>
+          {streaming ? '…' : 'Send'}
+        </button>
       </div>
+
     </main>
   )
 }
