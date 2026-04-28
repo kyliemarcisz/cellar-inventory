@@ -18,12 +18,11 @@ const CSS = `
   from { width:0; }
   to   { width:100%; }
 }
-.h-badge { animation: heroBadge 0.6s cubic-bezier(0.22,1,0.36,1) 0.1s both; }
-.h-1     { animation: heroUp   0.75s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
-.h-2     { animation: heroUp   0.75s cubic-bezier(0.22,1,0.36,1) 0.32s both; }
-.h-sub   { animation: heroUp   0.7s  cubic-bezier(0.22,1,0.36,1) 0.46s both; }
-.h-ctas  { animation: heroUp   0.7s  cubic-bezier(0.22,1,0.36,1) 0.58s both; }
-.h-note  { animation: heroUp   0.6s  cubic-bezier(0.22,1,0.36,1) 0.7s both; }
+.h-badge    { animation: heroBadge 0.6s cubic-bezier(0.22,1,0.36,1) 0.1s both; }
+.h-headline { animation: heroUp   0.75s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
+.h-sub      { animation: heroUp   0.7s  cubic-bezier(0.22,1,0.36,1) 0.42s both; }
+.h-ctas     { animation: heroUp   0.7s  cubic-bezier(0.22,1,0.36,1) 0.56s both; }
+.h-note     { animation: heroUp   0.6s  cubic-bezier(0.22,1,0.36,1) 0.68s both; }
 
 .r {
   opacity:0; transform:translateY(22px);
@@ -212,12 +211,14 @@ export default function Home() {
           back-of-house intelligence
         </p>
 
-        <h1 className="h-1 font-serif" style={{ fontSize: 'clamp(2.8rem, 9vw, 5rem)', fontWeight: 300, lineHeight: 1.1, color: '#3B2A1A', marginBottom: '0.2rem', maxWidth: '700px' }}>
-          The restaurant
-        </h1>
-        <h1 className="h-2 font-serif" style={{ fontSize: 'clamp(2.8rem, 9vw, 5rem)', fontWeight: 300, fontStyle: 'italic', lineHeight: 1.1, color: '#3B2A1A', marginBottom: '2.25rem', maxWidth: '700px' }}>
-          that runs itself.
-        </h1>
+        <div className="h-headline" style={{ marginBottom: '2.25rem', textAlign: 'center' }}>
+          <h1 className="font-serif" style={{ fontSize: 'clamp(2.8rem, 9vw, 5rem)', fontWeight: 300, lineHeight: 1.15, color: '#3B2A1A', maxWidth: '700px', margin: '0 auto' }}>
+            The restaurant
+          </h1>
+          <h1 className="font-serif" style={{ fontSize: 'clamp(2.8rem, 9vw, 5rem)', fontWeight: 300, fontStyle: 'italic', lineHeight: 1.15, color: '#3B2A1A', maxWidth: '700px', margin: '0 auto' }}>
+            that runs itself.
+          </h1>
+        </div>
 
         <p className="h-sub" style={{ maxWidth: '440px', fontSize: '1rem', lineHeight: 1.72, color: '#6B5744', fontFamily: 'var(--font-dm-sans)', marginBottom: '2.75rem' }}>
           Corner connects your staff, kitchen, and owner — with AI that flags what's low, writes the order email, and closes the loop end-to-end.
