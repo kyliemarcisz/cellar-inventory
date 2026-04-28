@@ -37,6 +37,17 @@ export type Item = {
   can_order: boolean
   can_make: boolean
   is_weekly: boolean
+  par_level: number | null
+  par_unit: string | null
+}
+
+export type InventoryCount = {
+  id: string
+  item_id: string
+  shop_id: string
+  counted_by: string
+  quantity: number
+  counted_at: string
 }
 
 export type Flag = {

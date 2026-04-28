@@ -8,7 +8,7 @@ import type { Category, Item } from '@/lib/supabase'
 import Link from 'next/link'
 
 type ItemWithCategory = Item & { category: Category }
-type Tab = 'order' | 'make'
+type Tab = 'order' | 'make' | 'count'
 
 export default function StaffPage() {
   const { shop, shopId, catIds, loading: shopLoading, notFound } = useShop()
@@ -25,6 +25,9 @@ export default function StaffPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState<Tab | null>(null)
   const [loading, setLoading] = useState(true)
+  const [counts, setCounts] = useState<Record<string, string>>({})
+  const [countSubmitting, setCountSubmitting] = useState(false)
+  const [countSubmitted, setCountSubmitted] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('staffName')
@@ -76,6 +79,19 @@ export default function StaffPage() {
     await supabase.from('tasks').insert(Array.from(flagged).map(itemId => ({ item_id: itemId, flagged_by: staffName, note: notes[itemId] || null, urgency: urgency[itemId] || 'normal', status: 'pending' })))
     setFlagged(new Set()); setNotes({}); setUrgency({}); setSubmitted('make'); setSubmitting(false)
     setTimeout(() => setSubmitted(null), 3000)
+  }
+
+  async function submitCount() {
+    const entries = Object.entries(counts).filter(([, v]) => v.trim() !== '')
+    if (!entries.length || !shopId) return
+    setCountSubmitting(true)
+    await supabase.from('inventory_counts').insert(
+      entries.map(([itemId, qty]) => ({ item_id: itemId, shop_id: shopId, counted_by: staffName, quantity: parseFloat(qty) }))
+    )
+    setCounts({})
+    setCountSubmitting(false)
+    setCountSubmitted(true)
+    setTimeout(() => setCountSubmitted(false), 3000)
   }
 
   if (notFound) return (
@@ -132,11 +148,13 @@ export default function StaffPage() {
           </div>
           <Link href={`/${slug}`} className="text-xs uppercase tracking-widest" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>← Back</Link>
         </div>
-        <div className="flex gap-1.5 p-1" style={{ background: 'var(--cream-dark)', borderRadius: '4px' }}>
-          {(['order', 'make'] as Tab[]).map(t => (
+        <div className="flex gap-1 p-1" style={{ background: 'var(--cream-dark)', borderRadius: '4px' }}>
+          {(['order', 'make', 'count'] as Tab[]).map(t => (
             <button key={t} onClick={() => { setTab(t); setFlagged(new Set()); setNotes({}) }} className="flex-1 py-2.5 text-xs uppercase transition-all"
-              style={tab === t ? { background: t === 'order' ? 'var(--wine)' : '#7A5A30', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.62rem' } : { color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.62rem' }}>
-              {t === 'order' ? 'Needs Reorder' : 'Needs Making'}
+              style={tab === t
+                ? { background: t === 'order' ? 'var(--wine)' : t === 'make' ? '#7A5A30' : 'var(--wine-dark)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.6rem' }
+                : { color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.6rem' }}>
+              {t === 'order' ? 'Reorder' : t === 'make' ? 'Kitchen' : 'Count'}
             </button>
           ))}
         </div>
@@ -193,19 +211,86 @@ export default function StaffPage() {
           </div>
         ))}
 
-        {itemsByCategory.length === 0 && weeklyItems.length === 0 && (
+        {itemsByCategory.length === 0 && weeklyItems.length === 0 && tab !== 'count' && (
           <div className="text-center py-20">
             <p className="font-serif" style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: '1.1rem' }}>Nothing set up yet.</p>
             <Link href={`/${slug}/admin`} className="underline mt-2 block text-xs uppercase tracking-widest" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>Configure in Admin</Link>
           </div>
         )}
+
+        {tab === 'count' && (
+          <div className="pb-32">
+            <p className="text-xs px-4 py-3 mb-4" style={{ background: 'var(--cream-dark)', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', borderRadius: '4px' }}>
+              Enter the quantity of each item currently on hand. Leave blank to skip.
+            </p>
+            {countSubmitted && (
+              <div className="px-4 py-3 mb-4" style={{ background: 'rgba(107,39,55,0.06)', border: '1px solid rgba(107,39,55,0.15)', borderRadius: '4px' }}>
+                <p className="text-sm" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)' }}>✓ Count submitted. Owner dashboard is updated.</p>
+              </div>
+            )}
+            {categories.map(cat => {
+              const catItems = items.filter(i => i.category_id === cat.id)
+              if (!catItems.length) return null
+              return (
+                <div key={cat.id} className="mb-6">
+                  <p className="font-serif mb-2 px-1" style={{ fontSize: '0.7rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--muted)' }}>{cat.name}</p>
+                  <div className="space-y-2">
+                    {catItems.map(item => {
+                      const val = counts[item.id] || ''
+                      const hasCount = val.trim() !== ''
+                      const belowPar = hasCount && item.par_level != null && parseFloat(val) < item.par_level
+                      return (
+                        <div key={item.id} className="flex items-center gap-3 px-4 py-3"
+                          style={{ background: belowPar ? 'rgba(196,168,130,0.12)' : 'white', border: `1px solid ${belowPar ? 'var(--gold)' : 'var(--cream-dark)'}`, borderRadius: '4px' }}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}>{item.name}</p>
+                            {item.par_level != null && (
+                              <p className="text-xs mt-0.5" style={{ color: belowPar ? '#7A5A30' : 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                                {belowPar ? `⚠ below par · need ${item.par_level - parseFloat(val)} more ${item.par_unit}` : `par ${item.par_level} ${item.par_unit}`}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setCounts(p => ({ ...p, [item.id]: String(Math.max(0, (parseFloat(p[item.id] || '0') || 0) - 1) )}))}
+                              className="w-8 h-8 flex items-center justify-center text-lg" style={{ border: '1px solid var(--cream-dark)', borderRadius: '4px', color: 'var(--muted)' }}>−</button>
+                            <input type="number" inputMode="numeric" min="0" value={val}
+                              onChange={e => setCounts(p => ({ ...p, [item.id]: e.target.value }))}
+                              className="text-center text-sm focus:outline-none"
+                              style={{ width: '52px', border: '1px solid var(--cream-dark)', borderRadius: '4px', padding: '6px 4px', fontFamily: 'var(--font-dm-sans)', color: 'var(--text)' }}
+                              placeholder="—" />
+                            <button onClick={() => setCounts(p => ({ ...p, [item.id]: String((parseFloat(p[item.id] || '0') || 0) + 1) }))}
+                              className="w-8 h-8 flex items-center justify-center text-lg" style={{ border: '1px solid var(--cream-dark)', borderRadius: '4px', color: 'var(--muted)' }}>+</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+            {items.length === 0 && (
+              <div className="text-center py-20">
+                <p className="font-serif" style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: '1.1rem' }}>Nothing set up yet.</p>
+                <Link href={`/${slug}/admin`} className="underline mt-2 block text-xs uppercase tracking-widest" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em' }}>Configure in Admin</Link>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {flagged.size > 0 && (
+      {flagged.size > 0 && tab !== 'count' && (
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-4" style={{ background: 'linear-gradient(to top, var(--cream) 65%, transparent)' }}>
           <button onClick={isOrder ? submitOrder : submitMake} disabled={submitting} className="w-full py-4 text-xs uppercase disabled:opacity-50"
             style={{ background: isOrder ? 'var(--wine)' : '#7A5A30', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em' }}>
             {submitting ? 'Submitting...' : isOrder ? `Flag ${flagged.size} item${flagged.size > 1 ? 's' : ''} for reorder` : `Send ${flagged.size} item${flagged.size > 1 ? 's' : ''} to kitchen`}
+          </button>
+        </div>
+      )}
+      {tab === 'count' && Object.values(counts).some(v => v.trim() !== '') && (
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-4" style={{ background: 'linear-gradient(to top, var(--cream) 65%, transparent)' }}>
+          <button onClick={submitCount} disabled={countSubmitting} className="w-full py-4 text-xs uppercase disabled:opacity-50"
+            style={{ background: 'var(--wine-dark)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em' }}>
+            {countSubmitting ? 'Saving…' : `Submit Count · ${Object.values(counts).filter(v => v.trim() !== '').length} items`}
           </button>
         </div>
       )}

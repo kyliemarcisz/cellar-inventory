@@ -56,6 +56,10 @@ export default function AdminPage() {
   const [supplierNameInput, setSupplierNameInput] = useState('')
   const [supplierEmailInput, setSupplierEmailInput] = useState('')
   const [supplierSaving, setSupplierSaving] = useState(false)
+  const [editingParItemId, setEditingParItemId] = useState<string | null>(null)
+  const [parLevelInput, setParLevelInput] = useState('')
+  const [parUnitInput, setParUnitInput] = useState('units')
+  const [parSaving, setParSaving] = useState(false)
 
   // Persona tab state
   const [pName, setPName] = useState(''); const [pTitle, setPTitle] = useState(''); const [pEmoji, setPEmoji] = useState('🤖')
@@ -239,6 +243,21 @@ export default function AdminPage() {
   async function deactivateItem(id: string) {
     await supabase.from('items').update({ is_active: false }).eq('id', id)
     setItems(prev => prev.filter(i => i.id !== id))
+  }
+
+  function startEditPar(item: Item) {
+    setEditingParItemId(item.id)
+    setParLevelInput(item.par_level != null ? String(item.par_level) : '')
+    setParUnitInput(item.par_unit || 'units')
+  }
+
+  async function savePar(itemId: string) {
+    setParSaving(true)
+    const level = parLevelInput.trim() ? parseFloat(parLevelInput) : null
+    await supabase.from('items').update({ par_level: level, par_unit: parUnitInput.trim() || 'units' }).eq('id', itemId)
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, par_level: level, par_unit: parUnitInput.trim() || 'units' } : i))
+    setEditingParItemId(null)
+    setParSaving(false)
   }
 
   function startEditSupplier(cat: Category) {
@@ -589,16 +608,40 @@ export default function AdminPage() {
                   )}
 
                   {catItems.map(item => (
-                    <div key={item.id} className="flex items-center justify-between px-4 py-2 mb-1" style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px' }}>
-                      <div>
-                        <p style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.875rem' }}>{item.name}</p>
-                        <div className="flex gap-1.5 mt-0.5">
-                          {item.can_order && <span className="text-xs px-2 py-0.5" style={{ background: 'var(--cream-dark)', color: 'var(--muted)', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)' }}>order</span>}
-                          {item.can_make && <span className="text-xs px-2 py-0.5" style={{ background: 'rgba(196,168,130,0.2)', color: '#7A5A30', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)' }}>make</span>}
-                          {item.is_weekly && <span className="text-xs px-2 py-0.5" style={{ background: 'rgba(138,145,103,0.15)', color: 'var(--muted)', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)' }}>weekly</span>}
+                    <div key={item.id} className="mb-1" style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div className="flex items-center justify-between px-4 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <p style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)', fontSize: '0.875rem' }}>{item.name}</p>
+                          <div className="flex gap-1.5 mt-0.5 flex-wrap">
+                            {item.can_order && <span className="text-xs px-2 py-0.5" style={{ background: 'var(--cream-dark)', color: 'var(--muted)', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)' }}>order</span>}
+                            {item.can_make && <span className="text-xs px-2 py-0.5" style={{ background: 'rgba(196,168,130,0.2)', color: '#7A5A30', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)' }}>make</span>}
+                            {item.is_weekly && <span className="text-xs px-2 py-0.5" style={{ background: 'rgba(138,145,103,0.15)', color: 'var(--muted)', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)' }}>weekly</span>}
+                            {item.par_level != null && (
+                              <span className="text-xs px-2 py-0.5" style={{ background: 'rgba(107,39,55,0.08)', color: 'var(--wine)', borderRadius: '2px', fontFamily: 'var(--font-dm-sans)' }}>
+                                par {item.par_level} {item.par_unit}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 ml-2">
+                          <button onClick={() => editingParItemId === item.id ? setEditingParItemId(null) : startEditPar(item)} className="text-xs" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                            {editingParItemId === item.id ? 'Cancel' : item.par_level != null ? 'Edit par' : 'Set par'}
+                          </button>
+                          <button onClick={() => deactivateItem(item.id)} style={{ color: 'var(--muted)', fontSize: '1.25rem' }}>×</button>
                         </div>
                       </div>
-                      <button onClick={() => deactivateItem(item.id)} style={{ color: 'var(--muted)', fontSize: '1.25rem', padding: '0 0.5rem' }}>×</button>
+                      {editingParItemId === item.id && (
+                        <div className="flex gap-2 px-4 pb-3">
+                          <input className="w-20 px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--cream-dark)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
+                            placeholder="12" type="number" min="0" value={parLevelInput} onChange={e => setParLevelInput(e.target.value)} />
+                          <input className="flex-1 px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--cream-dark)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
+                            placeholder="bottles / lbs / cases" value={parUnitInput} onChange={e => setParUnitInput(e.target.value)} />
+                          <button onClick={() => savePar(item.id)} disabled={parSaving} className="px-4 py-2 text-xs disabled:opacity-40"
+                            style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}>
+                            {parSaving ? '…' : 'Save'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

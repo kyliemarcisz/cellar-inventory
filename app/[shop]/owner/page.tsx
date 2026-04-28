@@ -8,11 +8,13 @@ import type { Flag } from '@/lib/supabase'
 import Link from 'next/link'
 
 type FlagWithSupplier = Flag & { item: { name: string; category: { name: string; supplier_name: string | null; supplier_email: string | null } } }
+type BelowParItem = { id: string; name: string; par_level: number; par_unit: string; current_qty: number; category_name: string; counted_by: string; counted_at: string; supplier_email: string | null; supplier_name: string | null }
 
 export default function OwnerPage() {
   const { shop, itemIds, loading: shopLoading, notFound } = useShop()
   const { shop: slug } = useParams<{ shop: string }>()
   const [flags, setFlags] = useState<FlagWithSupplier[]>([])
+  const [belowPar, setBelowPar] = useState<BelowParItem[]>([])
   const [loading, setLoading] = useState(true)
   const [emailsSent, setEmailsSent] = useState<Set<string>>(new Set())
   const [emailError, setEmailError] = useState<string | null>(null)
@@ -20,6 +22,7 @@ export default function OwnerPage() {
   useEffect(() => {
     if (shopLoading) return
     loadFlags()
+    loadBelowPar()
     const channel = supabase
       .channel('flags-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'flags' }, () => loadFlags())
@@ -27,6 +30,39 @@ export default function OwnerPage() {
     return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopLoading, itemIds.length])
+
+  async function loadBelowPar() {
+    if (itemIds.length === 0) { setBelowPar([]); return }
+    const { data: items } = await supabase
+      .from('items')
+      .select('id, name, par_level, par_unit, category:categories(name, supplier_name, supplier_email)')
+      .in('id', itemIds)
+      .not('par_level', 'is', null)
+      .eq('is_active', true)
+    if (!items?.length) { setBelowPar([]); return }
+
+    const { data: counts } = await supabase
+      .from('inventory_counts')
+      .select('item_id, quantity, counted_by, counted_at')
+      .in('item_id', items.map(i => i.id))
+      .order('counted_at', { ascending: false })
+
+    const latestCount: Record<string, { quantity: number; counted_by: string; counted_at: string }> = {}
+    for (const c of counts || []) {
+      if (!latestCount[c.item_id]) latestCount[c.item_id] = { quantity: c.quantity, counted_by: c.counted_by, counted_at: c.counted_at }
+    }
+
+    const below: BelowParItem[] = []
+    for (const item of items) {
+      const count = latestCount[item.id]
+      if (!count) continue
+      const cat = item.category as unknown as { name: string; supplier_name: string | null; supplier_email: string | null }
+      if (count.quantity < (item.par_level as number)) {
+        below.push({ id: item.id, name: item.name, par_level: item.par_level as number, par_unit: item.par_unit || 'units', current_qty: count.quantity, category_name: cat?.name || '', counted_by: count.counted_by, counted_at: count.counted_at, supplier_email: cat?.supplier_email || null, supplier_name: cat?.supplier_name || null })
+      }
+    }
+    setBelowPar(below)
+  }
 
   async function loadFlags() {
     if (itemIds.length === 0) { setFlags([]); setLoading(false); return }
@@ -120,7 +156,39 @@ export default function OwnerPage() {
       )}
 
       <div className="px-4 pt-5 space-y-6">
-        {flags.length === 0 ? (
+        {belowPar.length > 0 && (
+          <div>
+            <p className="font-serif mb-3 px-1" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--wine)' }}>
+              Below Par · {belowPar.length}
+            </p>
+            <div className="space-y-2">
+              {belowPar.map(item => (
+                <div key={item.id} style={{ background: 'white', borderRadius: '4px', border: '1px solid var(--cream-dark)', borderLeft: '3px solid var(--gold)', overflow: 'hidden' }}>
+                  <div className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium" style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}>{item.name}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                          {item.category_name} · counted by {item.counted_by} · {getTimeAgo(item.counted_at)}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-medium" style={{ color: '#7A5A30', fontFamily: 'var(--font-dm-sans)' }}>
+                          {item.current_qty} / {item.par_level} {item.par_unit}
+                        </p>
+                        <p className="text-xs" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                          need {item.par_level - item.current_qty} more
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {flags.length === 0 && belowPar.length === 0 ? (
           <div className="text-center py-24">
             <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4 text-lg" style={{ border: '1px solid var(--wine)', color: 'var(--wine)', borderRadius: '50%' }}>✓</div>
             <p className="font-serif" style={{ fontSize: '1.6rem', fontWeight: 300, color: 'var(--text)' }}>All stocked up.</p>
