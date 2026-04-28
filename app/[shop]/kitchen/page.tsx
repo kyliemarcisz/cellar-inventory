@@ -27,7 +27,7 @@ export default function KitchenPage() {
 
     return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopLoading, itemIds.length, shopId])
+  }, [shopLoading, shopId])
 
   async function loadEightySixes() {
     if (!shopId) return
@@ -36,11 +36,18 @@ export default function KitchenPage() {
   }
 
   async function loadTasks() {
-    if (itemIds.length === 0) { setTasks([]); setLoading(false); return }
+    if (!shopId) { setTasks([]); setLoading(false); return }
+    const { data: cats } = await supabase.from('categories').select('id').eq('shop_id', shopId)
+    const freshCatIds = cats?.map((c: { id: string }) => c.id) || []
+    if (freshCatIds.length === 0) { setTasks([]); setLoading(false); return }
+    const { data: freshItems } = await supabase.from('items').select('id').in('category_id', freshCatIds)
+    const freshItemIds = freshItems?.map((i: { id: string }) => i.id) || []
+    if (freshItemIds.length === 0) { setTasks([]); setLoading(false); return }
+
     const { data } = await supabase
       .from('tasks')
       .select('*, item:items(*, category:categories(*))')
-      .in('item_id', itemIds)
+      .in('item_id', freshItemIds)
       .in('status', ['pending', 'in_progress'])
       .order('urgency', { ascending: false })
       .order('flagged_at', { ascending: true })

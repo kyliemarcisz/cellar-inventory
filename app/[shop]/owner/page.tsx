@@ -32,7 +32,7 @@ export default function OwnerPage() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopLoading, itemIds.length, shopId])
+  }, [shopLoading, shopId])
 
   async function loadEightySixes() {
     if (!shopId) return
@@ -52,12 +52,22 @@ export default function OwnerPage() {
     setEightySixes([])
   }
 
+  async function getFreshItemIds(): Promise<string[]> {
+    if (!shopId) return []
+    const { data: cats } = await supabase.from('categories').select('id').eq('shop_id', shopId)
+    const freshCatIds = cats?.map((c: { id: string }) => c.id) || []
+    if (!freshCatIds.length) return []
+    const { data: its } = await supabase.from('items').select('id').in('category_id', freshCatIds)
+    return its?.map((i: { id: string }) => i.id) || []
+  }
+
   async function loadBelowPar() {
-    if (itemIds.length === 0) { setBelowPar([]); return }
+    const freshItemIds = await getFreshItemIds()
+    if (freshItemIds.length === 0) { setBelowPar([]); return }
     const { data: items } = await supabase
       .from('items')
       .select('id, name, par_level, par_unit, category:categories(name, supplier_name, supplier_email)')
-      .in('id', itemIds)
+      .in('id', freshItemIds)
       .not('par_level', 'is', null)
       .eq('is_active', true)
     if (!items?.length) { setBelowPar([]); return }
@@ -86,11 +96,12 @@ export default function OwnerPage() {
   }
 
   async function loadFlags() {
-    if (itemIds.length === 0) { setFlags([]); setLoading(false); return }
+    const freshItemIds = await getFreshItemIds()
+    if (freshItemIds.length === 0) { setFlags([]); setLoading(false); return }
     const { data } = await supabase
       .from('flags')
       .select('*, item:items(name, category:categories(name, supplier_name, supplier_email))')
-      .in('item_id', itemIds)
+      .in('item_id', freshItemIds)
       .in('status', ['pending', 'ordered'])
       .order('flagged_at', { ascending: false })
     if (data) setFlags(data as FlagWithSupplier[])
