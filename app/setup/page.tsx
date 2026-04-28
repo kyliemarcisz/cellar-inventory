@@ -98,7 +98,7 @@ export default function SetupPage() {
     setSavedSlug(slug)
     setSavedName(name.trim())
     setSaving(false)
-    setStep(4)
+    router.push(`/${slug}`)
   }
 
   function copyLink(text: string, key: string) {
