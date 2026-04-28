@@ -24,6 +24,8 @@ export type Category = {
   name: string
   shop_id: string
   sort_order: number
+  supplier_name: string | null
+  supplier_email: string | null
 }
 
 export type Item = {

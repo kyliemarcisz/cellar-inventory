@@ -52,6 +52,10 @@ export default function AdminPage() {
   const [newItemCanOrder, setNewItemCanOrder] = useState(true)
   const [newItemCanMake, setNewItemCanMake] = useState(false)
   const [newItemIsWeekly, setNewItemIsWeekly] = useState(false)
+  const [editingSupplierCatId, setEditingSupplierCatId] = useState<string | null>(null)
+  const [supplierNameInput, setSupplierNameInput] = useState('')
+  const [supplierEmailInput, setSupplierEmailInput] = useState('')
+  const [supplierSaving, setSupplierSaving] = useState(false)
 
   // Persona tab state
   const [pName, setPName] = useState(''); const [pTitle, setPTitle] = useState(''); const [pEmoji, setPEmoji] = useState('🤖')
@@ -234,6 +238,20 @@ export default function AdminPage() {
   async function deactivateItem(id: string) {
     await supabase.from('items').update({ is_active: false }).eq('id', id)
     setItems(prev => prev.filter(i => i.id !== id))
+  }
+
+  function startEditSupplier(cat: Category) {
+    setEditingSupplierCatId(cat.id)
+    setSupplierNameInput(cat.supplier_name || '')
+    setSupplierEmailInput(cat.supplier_email || '')
+  }
+
+  async function saveSupplier(catId: string) {
+    setSupplierSaving(true)
+    await supabase.from('categories').update({ supplier_name: supplierNameInput.trim() || null, supplier_email: supplierEmailInput.trim() || null }).eq('id', catId)
+    setCategories(prev => prev.map(c => c.id === catId ? { ...c, supplier_name: supplierNameInput.trim() || null, supplier_email: supplierEmailInput.trim() || null } : c))
+    setEditingSupplierCatId(null)
+    setSupplierSaving(false)
   }
 
   // ── Persona actions ──
@@ -541,11 +559,34 @@ export default function AdminPage() {
             <section>
               <p className="text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.62rem' }}>Current Inventory</p>
               {itemsByCategory.map(({ category, items: catItems }) => (
-                <div key={category.id} className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
+                <div key={category.id} className="mb-5">
+                  <div className="flex items-center justify-between mb-1">
                     <p className="text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)', fontWeight: 500 }}>{category.name}</p>
-                    {catItems.length === 0 && <button onClick={() => deleteCategory(category.id)} className="text-xs" style={{ color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)' }}>Delete</button>}
+                    <div className="flex gap-3">
+                      <button onClick={() => editingSupplierCatId === category.id ? setEditingSupplierCatId(null) : startEditSupplier(category)} className="text-xs" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                        {editingSupplierCatId === category.id ? 'Cancel' : category.supplier_email ? 'Edit supplier' : '+ Supplier'}
+                      </button>
+                      {catItems.length === 0 && <button onClick={() => deleteCategory(category.id)} className="text-xs" style={{ color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)' }}>Delete</button>}
+                    </div>
                   </div>
+                  {category.supplier_email && editingSupplierCatId !== category.id && (
+                    <p className="text-xs mb-2" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                      ✉ {category.supplier_name || category.supplier_email}
+                    </p>
+                  )}
+                  {editingSupplierCatId === category.id && (
+                    <div className="flex gap-2 mb-2">
+                      <input className="flex-1 px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--cream-dark)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
+                        placeholder="Supplier name" value={supplierNameInput} onChange={e => setSupplierNameInput(e.target.value)} />
+                      <input className="flex-1 px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--cream-dark)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}
+                        placeholder="supplier@email.com" value={supplierEmailInput} onChange={e => setSupplierEmailInput(e.target.value)} type="email" />
+                      <button onClick={() => saveSupplier(category.id)} disabled={supplierSaving} className="px-4 py-2 text-xs disabled:opacity-40"
+                        style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '4px', fontFamily: 'var(--font-dm-sans)' }}>
+                        {supplierSaving ? '…' : 'Save'}
+                      </button>
+                    </div>
+                  )}
+
                   {catItems.map(item => (
                     <div key={item.id} className="flex items-center justify-between px-4 py-2 mb-1" style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px' }}>
                       <div>
