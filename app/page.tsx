@@ -58,7 +58,7 @@ const ROLES = [
     accent: '#C9A87C',
     textOnAccent: '#3B2A1A',
     features: [
-      'Chat with a persona trained on your restaurant's voice',
+      "Chat with a persona trained on your restaurant's voice",
       'Answers sourced from your actual menu and uploaded docs',
       'Quick prompts tailored to your venue type',
       'Ask about recipes, pairings, prep, or specials',
