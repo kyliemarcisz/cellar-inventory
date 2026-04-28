@@ -87,8 +87,10 @@ export default function StaffPage() {
   async function submitMake() {
     if (flagged.size === 0) return
     setSubmitting(true)
-    await supabase.from('tasks').insert(Array.from(flagged).map(itemId => ({ item_id: itemId, flagged_by: staffName, note: notes[itemId] || null, urgency: urgency[itemId] || 'normal', status: 'pending' })))
-    setFlagged(new Set()); setNotes({}); setUrgency({}); setSubmitted('make'); setSubmitting(false)
+    const { error } = await supabase.from('tasks').insert(Array.from(flagged).map(itemId => ({ item_id: itemId, flagged_by: staffName, note: notes[itemId] || null, urgency: urgency[itemId] || 'normal', status: 'pending' })))
+    setSubmitting(false)
+    if (error) { alert('Failed to send to kitchen: ' + error.message); return }
+    setFlagged(new Set()); setNotes({}); setUrgency({}); setSubmitted('make')
     setTimeout(() => setSubmitted(null), 3000)
   }
 
