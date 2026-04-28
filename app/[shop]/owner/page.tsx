@@ -6,6 +6,7 @@ import { useShop } from '@/lib/shop-context'
 import { useParams } from 'next/navigation'
 import type { Flag, EightySix } from '@/lib/supabase'
 import Link from 'next/link'
+import { Tip } from '@/components/tip'
 
 type FlagWithSupplier = Flag & { item: { name: string; category: { name: string; supplier_name: string | null; supplier_email: string | null } } }
 type BelowParItem = { id: string; name: string; par_level: number; par_unit: string; current_qty: number; category_name: string; counted_by: string; counted_at: string; supplier_email: string | null; supplier_name: string | null }
@@ -388,7 +389,9 @@ export default function OwnerPage() {
 
         {belowPar.length > 0 && (
           <div>
-            <p className="font-serif mb-3 px-1" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--wine)' }}>Below Par · {belowPar.length}</p>
+            <p className="font-serif mb-3 px-1" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--wine)' }}>
+              Below Par · {belowPar.length}<Tip text="Items where the last staff count came in below the minimum level you set in Admin. Not yet flagged for reorder." />
+            </p>
             <div className="space-y-2">
               {belowPar.map(item => (
                 <div key={item.id} style={{ background: 'white', borderRadius: '4px', border: '1px solid var(--cream-dark)', borderLeft: '3px solid var(--gold)' }}>
@@ -412,7 +415,10 @@ export default function OwnerPage() {
           <div>
             <div className="flex items-center justify-between mb-3 px-1">
               <p className="font-serif" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--terra)' }}>Out of Stock · {eightySixes.length}</p>
-              <button onClick={clearAllEightySixes} className="text-xs underline" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Clear all</button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={clearAllEightySixes} className="text-xs underline" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Clear all</button>
+                <Tip text="Marks all out-of-stock items as available again. Use when a delivery has arrived." />
+              </div>
             </div>
             <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>
               {eightySixes.map((e, i) => (
@@ -441,7 +447,10 @@ export default function OwnerPage() {
               <div>
                 <div className="flex items-center justify-between mb-3 px-1">
                   <p className="font-serif" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--wine)' }}>Needs Reorder · {pending.length}</p>
-                  <button onClick={markAllOrdered} className="text-xs underline" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Review all →</button>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={markAllOrdered} className="text-xs underline" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>Review all →</button>
+                    <Tip text="Opens a draft of all pending orders grouped by supplier, with AI-written emails ready to edit and send." />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   {pending.map(flag => <FlagCard key={flag.id} flag={flag} emailSent={emailsSent.has(flag.id)} onOrdered={() => updateStatus(flag.id, 'ordered')} onReceived={() => updateStatus(flag.id, 'received')} />)}
@@ -461,7 +470,9 @@ export default function OwnerPage() {
 
         {recentOrders.length > 0 && (
           <div>
-            <p className="font-serif mb-3 px-1" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--muted)' }}>Order History</p>
+            <p className="font-serif mb-3 px-1" style={{ fontSize: '0.72rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+              Order History<Tip text="The last 20 orders sent. A green bar means the supplier clicked the confirmation link in their email." />
+            </p>
             <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>
               {recentOrders.map((order, i) => (
                 <div key={order.id} className="px-4 py-3 flex items-start justify-between gap-3"
@@ -513,17 +524,23 @@ function FlagCard({ flag, emailSent, onOrdered, onReceived }: { flag: FlagWithSu
             {isOrdered ? 'Ordered' : 'Low'}
           </span>
         </div>
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-2 mt-3 items-center">
           {!isOrdered && (
-            <button onClick={onOrdered} className="flex-1 py-2.5 text-xs uppercase tracking-widest"
-              style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
-              {hasSupplier ? 'Review & Order ✉' : 'Mark Ordered'}
-            </button>
+            <div className="flex-1 flex items-center gap-1.5">
+              <button onClick={onOrdered} className="flex-1 py-2.5 text-xs uppercase tracking-widest"
+                style={{ background: 'var(--wine)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
+                {hasSupplier ? 'Review & Order ✉' : 'Mark Ordered'}
+              </button>
+              <Tip text={hasSupplier ? 'Opens an AI-drafted order email to this supplier. You can edit it before sending.' : 'Marks this item as ordered. No email — configure a supplier email in Admin to enable that.'} />
+            </div>
           )}
-          <button onClick={onReceived} className={`py-2.5 text-xs uppercase tracking-widest ${isOrdered ? 'flex-1' : 'px-4'}`}
-            style={{ border: '1px solid rgba(0,0,0,0.1)', color: 'var(--muted)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
-            {isOrdered ? 'Mark Received ✓' : 'Received'}
-          </button>
+          <div className={`flex items-center gap-1.5 ${isOrdered ? 'flex-1' : ''}`}>
+            <button onClick={onReceived} className={`py-2.5 text-xs uppercase tracking-widest ${isOrdered ? 'flex-1' : 'px-4'}`}
+              style={{ border: '1px solid rgba(0,0,0,0.1)', color: 'var(--muted)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
+              {isOrdered ? 'Mark Received ✓' : 'Received'}
+            </button>
+            <Tip text="Confirms the delivery arrived and removes this item from the reorder list." />
+          </div>
         </div>
       </div>
     </div>

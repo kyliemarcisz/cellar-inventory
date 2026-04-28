@@ -6,6 +6,7 @@ import { useShop } from '@/lib/shop-context'
 import { useParams } from 'next/navigation'
 import type { Category, Item, EightySix } from '@/lib/supabase'
 import Link from 'next/link'
+import { Tip } from '@/components/tip'
 
 type ItemWithCategory = Item & { category: Category }
 type Tab = 'order' | 'make' | 'count'
@@ -183,6 +184,9 @@ export default function StaffPage() {
                 ? { background: t === 'order' ? 'var(--wine)' : t === 'make' ? '#7A5A30' : 'var(--wine-dark)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.6rem' }
                 : { color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.15em', fontSize: '0.6rem' }}>
               {t === 'order' ? 'Reorder' : t === 'make' ? 'Kitchen' : 'Count'}
+              {tab === t && t === 'order' && <Tip text="Tap items that are running low. The owner is notified and an order email gets drafted automatically." />}
+              {tab === t && t === 'make' && <Tip text="Send items to the kitchen prep queue. Kitchen staff see these in real time." />}
+              {tab === t && t === 'count' && <Tip text="Log how much of each item is on hand. Helps the owner see what's below par." />}
             </button>
           ))}
         </div>
@@ -196,6 +200,7 @@ export default function StaffPage() {
             <div className="flex items-center justify-between mb-1.5">
               <p style={{ fontSize: '0.6rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)' }}>
                 Out of Stock{eightySixes.length > 0 ? ` · ${eightySixes.length}` : ''}
+              <Tip text="Items marked out are shown to the whole team so everyone knows what's unavailable." />
               </p>
               <button onClick={() => setShowEightyForm(p => !p)} style={{ fontSize: '0.65rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>
                 {showEightyForm ? 'cancel' : '+ mark out'}
@@ -237,7 +242,9 @@ export default function StaffPage() {
 
         {weeklyItems.length > 0 && (
           <div>
-            <p className="font-serif mb-2 px-1" style={{ fontSize: '0.7rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: '#7A5A30' }}>Weekly Staples</p>
+            <p className="font-serif mb-2 px-1" style={{ fontSize: '0.7rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: '#7A5A30' }}>
+              Weekly Staples<Tip text="Items your restaurant orders every week. Pre-checked for you — uncheck anything you don't need this time." />
+            </p>
             <div className="space-y-1.5">
               {weeklyItems.map(item => {
                 const isFlagged = flagged.has(item.id)
@@ -273,7 +280,12 @@ export default function StaffPage() {
                     {isFlagged && (
                       <div className="px-4 pb-3.5 space-y-2">
                         <input className="w-full text-sm px-3 py-2 focus:outline-none" style={{ background: flaggedInputBg, border: `1px solid ${flaggedInputBorder}`, color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)' }} placeholder={tab === 'make' ? 'Quantity or note' : 'Add a note (optional)'} value={notes[item.id] || ''} onChange={e => setNotes(prev => ({ ...prev, [item.id]: e.target.value }))} />
-                        {tab === 'make' && <button onClick={() => setUrgency(prev => ({ ...prev, [item.id]: isUrgent ? 'normal' : 'urgent' }))} className="text-xs px-4 py-1.5 uppercase tracking-widest" style={isUrgent ? { background: 'var(--wine)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em' } : { background: 'rgba(255,255,255,0.2)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em' }}>{isUrgent ? '· urgent — undo' : 'mark urgent'}</button>}
+                        {tab === 'make' && (
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => setUrgency(prev => ({ ...prev, [item.id]: isUrgent ? 'normal' : 'urgent' }))} className="text-xs px-4 py-1.5 uppercase tracking-widest" style={isUrgent ? { background: 'var(--wine)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em' } : { background: 'rgba(255,255,255,0.2)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em' }}>{isUrgent ? '· urgent — undo' : 'mark urgent'}</button>
+                            <Tip text="Urgent tasks move to the top of the kitchen queue and are highlighted in red." dark />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

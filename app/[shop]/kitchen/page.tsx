@@ -6,6 +6,7 @@ import { useShop } from '@/lib/shop-context'
 import { useParams } from 'next/navigation'
 import type { Task, EightySix } from '@/lib/supabase'
 import Link from 'next/link'
+import { Tip } from '@/components/tip'
 
 export default function KitchenPage() {
   const { shopId, itemIds, loading: shopLoading, notFound } = useShop()
@@ -139,7 +140,12 @@ function TaskCard({ task, onUpdate }: { task: Task; onUpdate: (id: string, statu
         <p className="font-serif" style={{ fontSize: '2.4rem', fontWeight: 300, color: 'var(--cream)', lineHeight: 1.1 }}>{item?.name}</p>
         {task.note && <p className="text-sm mt-2 italic" style={{ color: 'var(--gold)', fontFamily: 'var(--font-dm-sans)' }}>&quot;{task.note}&quot;</p>}
         <div className="flex gap-2 mt-4">
-          {!isInProgress && <button onClick={() => onUpdate(task.id, 'in_progress')} className="flex-1 py-3 text-xs uppercase tracking-widest" style={{ background: 'var(--terra)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>Start</button>}
+          {!isInProgress && (
+            <div className="flex-1 flex items-center gap-1.5">
+              <button onClick={() => onUpdate(task.id, 'in_progress')} className="flex-1 py-3 text-xs uppercase tracking-widest" style={{ background: 'var(--terra)', color: 'var(--cream)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>Start</button>
+              <Tip text="Marks this task as in progress so the rest of the team knows it's being handled." dark />
+            </div>
+          )}
           <button onClick={() => onUpdate(task.id, 'done')} className={`py-3 text-xs uppercase tracking-widest ${isInProgress ? 'flex-1' : 'px-6'}`}
             style={isInProgress ? { background: 'var(--cream)', color: 'var(--wine-dark)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' } : { border: '1px solid rgba(196,168,130,0.2)', color: 'var(--muted)', borderRadius: '3px', fontFamily: 'var(--font-dm-sans)', letterSpacing: '0.2em', fontSize: '0.65rem' }}>
             {isInProgress ? 'Done ✓' : 'Done'}
