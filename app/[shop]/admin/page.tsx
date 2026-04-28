@@ -81,8 +81,9 @@ export default function AdminPage() {
     if (!shopId) return
     const { data: cats } = await supabase.from('categories').select('*').eq('shop_id', shopId).order('sort_order')
     if (cats) { setCategories(cats); if (cats.length > 0 && !newItemCat) setNewItemCat(cats[0].id) }
-    if (catIds.length > 0) {
-      const { data: its } = await supabase.from('items').select('*, category:categories(*)').in('category_id', catIds).eq('is_active', true)
+    const freshCatIds = cats?.map(c => c.id) ?? []
+    if (freshCatIds.length > 0) {
+      const { data: its } = await supabase.from('items').select('*, category:categories(*)').in('category_id', freshCatIds).eq('is_active', true)
       if (its) setItems(its as ItemWithCategory[])
     }
     setLoading(false)
