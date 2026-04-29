@@ -209,17 +209,19 @@ export default function AdminPage() {
       }
       if (!catId) continue
 
-      const { error: itemErr } = await supabase.from('items').insert(
-        selectedItems.map(item => ({ category_id: catId, name: item.name, can_order: item.can_order, can_make: item.can_make, is_weekly: item.is_weekly, is_active: true }))
-      )
+      const resolvedCatId = catId as string
+      const { data: inserted, error: itemErr } = await supabase.from('items').insert(
+        selectedItems.map(item => ({ category_id: resolvedCatId, name: item.name, can_order: item.can_order, can_make: item.can_make, is_weekly: item.is_weekly, is_active: true }))
+      ).select('id')
       if (itemErr) { setAdding(false); setAddError(`Failed to add items for "${parsedCat.name}": ${itemErr.message}`); return }
+      if (!inserted || inserted.length === 0) { setAdding(false); setAddError(`Items for "${parsedCat.name}" were not saved — check Supabase RLS policies on the items table.`); return }
     }
 
     setAdding(false)
     setAddSuccess(true)
     setParsedCategories([])
     setTimeout(() => setAddSuccess(false), 3000)
-    loadData()
+    await loadData()
   }
 
   // ── Inventory actions ──
