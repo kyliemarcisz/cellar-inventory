@@ -17,7 +17,7 @@ type Investor = { id: string; name: string; firm: string; check_size: string; st
 type Relationship = { id: string; name: string; company: string; type: string; last_contacted_at: string | null; notes: string; created_at: string }
 type Milestone = { id: string; date: string; title: string; note: string | null; created_at: string }
 
-const NAV = ['restaurants', 'health', 'activity', 'metrics', 'runway', 'fundraising', 'relationships', 'milestones']
+const NAV = ['platform', 'restaurants', 'health', 'activity', 'metrics', 'runway', 'fundraising', 'relationships', 'milestones']
 const STAGES = ['cold', 'emailed', 'met', 'interested', 'committed', 'passed']
 const STAGE_COLORS: Record<string, string> = { cold: '#9A8878', emailed: '#C4A882', met: '#C1714F', interested: '#4A7C59', committed: '#6B2737', passed: '#C0C0C0' }
 const SAT_COLORS: Record<string, string> = { happy: '#4A7C59', neutral: '#C4A882', at_risk: '#C1714F' }
@@ -38,6 +38,7 @@ export default function OpsPage() {
   const [investors, setInvestors] = useState<Investor[]>([])
   const [relationships, setRelationships] = useState<Relationship[]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [platformStats, setPlatformStats] = useState<{ shops: number; flagsWeek: number; tasksWeek: number }>({ shops: 0, flagsWeek: 0, tasksWeek: 0 })
 
   // form visibility
   const [showRest, setShowRest] = useState(false)
@@ -85,8 +86,18 @@ export default function OpsPage() {
 
   async function loadAll() {
     setLoading(true)
-    await Promise.all([loadRestaurants(), loadHealth(), loadActivity(), loadMetrics(), loadRunway(), loadInvestors(), loadRelationships(), loadMilestones()])
+    await Promise.all([loadRestaurants(), loadHealth(), loadActivity(), loadMetrics(), loadRunway(), loadInvestors(), loadRelationships(), loadMilestones(), loadPlatformStats()])
     setLoading(false)
+  }
+
+  async function loadPlatformStats() {
+    const since = new Date(Date.now() - 7 * 86400000).toISOString()
+    const [{ count: shops }, { count: flagsWeek }, { count: tasksWeek }] = await Promise.all([
+      supabase.from('shops').select('id', { count: 'exact', head: true }),
+      supabase.from('flags').select('id', { count: 'exact', head: true }).gte('flagged_at', since),
+      supabase.from('tasks').select('id', { count: 'exact', head: true }).gte('flagged_at', since),
+    ])
+    setPlatformStats({ shops: shops || 0, flagsWeek: flagsWeek || 0, tasksWeek: tasksWeek || 0 })
   }
 
   async function loadRestaurants() { const { data } = await supabase.from('biz_restaurants').select('*').order('created_at', { ascending: false }); if (data) setRestaurants(data as Restaurant[]) }
@@ -189,6 +200,25 @@ export default function OpsPage() {
       </div>
 
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2.5rem 1.5rem 0' }}>
+
+        {/* ══ 0. PLATFORM ═════════════════════════════════════════════════════ */}
+        <section id="platform" style={{ marginBottom: '4rem' }}>
+          <SectionHeader title="Corner Platform" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+            <StatCard label="Active Restaurants" value={platformStats.shops} accent />
+            <StatCard label="Reorder Flags (7d)" value={platformStats.flagsWeek} />
+            <StatCard label="Kitchen Tasks (7d)" value={platformStats.tasksWeek} />
+            <StatCard label="Days Since Launch" value={daysSinceFounding} />
+          </div>
+          <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', padding: '1rem 1.25rem' }}>
+            <p style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '0.75rem' }}>Quick Links</p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {[{ label: 'The Cellar — Staff', href: '/cellar/staff' }, { label: 'The Cellar — Owner', href: '/cellar/owner' }, { label: 'The Cellar — Grace', href: '/cellar/artisan' }, { label: 'Setup New Restaurant', href: '/setup' }].map(l => (
+                <a key={l.href} href={l.href} target="_blank" rel="noopener" style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.68rem', color: 'var(--wine)', padding: '0.35rem 0.75rem', border: '1px solid rgba(107,39,55,0.2)', borderRadius: '3px', textDecoration: 'none' }}>{l.label} ↗</a>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* ══ 1. RESTAURANTS ══════════════════════════════════════════════════ */}
         <section id="restaurants" style={{ marginBottom: '4rem' }}>

@@ -66,7 +66,7 @@ export default function ArtisanPage() {
   async function loadInventoryContext() {
     if (!shopId) return
 
-    const { data: cats } = await supabase.from('categories').select('id').eq('shop_id', shopId)
+    const { data: cats } = await supabase.from('categories').select('id, name, supplier_name, supplier_email').eq('shop_id', shopId)
     const catIds = cats?.map((c: { id: string }) => c.id) || []
     const { data: its } = catIds.length
       ? await supabase.from('items').select('id, name, par_level, par_unit').in('category_id', catIds).eq('is_active', true)
@@ -130,6 +130,34 @@ export default function ArtisanPage() {
       if (belowPar.length) {
         lines.push('\nBELOW PAR:')
         belowPar.forEach(i => lines.push(`- ${i.name}: ${latest[i.id]} / ${i.par_level} ${i.par_unit || 'units'}`))
+      }
+    }
+
+    // Supplier contacts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const suppliersWithContact = (cats || []).filter((c: any) => c.supplier_name)
+    if (suppliersWithContact.length) {
+      lines.push('\nSUPPLIER CONTACTS:')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      suppliersWithContact.forEach((c: any) => {
+        const contact = c.supplier_email ? `${c.supplier_name} (${c.supplier_email})` : c.supplier_name
+        lines.push(`- ${c.name}: ${contact}`)
+      })
+    }
+
+    // Historical patterns: most flagged items in last 30 days
+    if (itemIds.length) {
+      const since30 = new Date(Date.now() - 30 * 86400000).toISOString()
+      const { data: histFlags } = await supabase.from('flags').select('item_id').in('item_id', itemIds).gte('flagged_at', since30)
+      if (histFlags && histFlags.length > 0) {
+        const countMap: Record<string, number> = {}
+        for (const f of histFlags) countMap[f.item_id] = (countMap[f.item_id] || 0) + 1
+        const topItems = (its || []).filter(i => (countMap[i.id] || 0) >= 2)
+          .sort((a, b) => (countMap[b.id] || 0) - (countMap[a.id] || 0)).slice(0, 5)
+        if (topItems.length) {
+          lines.push('\nFREQUENTLY LOW (last 30 days):')
+          topItems.forEach(i => lines.push(`- ${i.name}: flagged ${countMap[i.id]}×`))
+        }
       }
     }
 

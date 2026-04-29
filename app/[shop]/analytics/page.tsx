@@ -20,6 +20,7 @@ export default function AnalyticsPage() {
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [pendingNow, setPendingNow] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [supplierCats, setSupplierCats] = useState<{ name: string; supplier_name: string }[]>([])
 
   useEffect(() => {
     if (!shopLoading && shopId) load(period)
@@ -45,6 +46,9 @@ export default function AnalyticsPage() {
     const pendingQ = supabase.from('flags').select('id', { count: 'exact', head: true }).in('item_id', freshItemIds).eq('status', 'pending')
 
     if (since) { flagQ = flagQ.gte('flagged_at', since); taskQ = taskQ.gte('flagged_at', since) }
+    const { data: catsData } = await supabase.from('categories').select('name, supplier_name').eq('shop_id', shopId)
+    setSupplierCats(((catsData || []) as { name: string; supplier_name: string | null }[]).filter(c => c.supplier_name) as { name: string; supplier_name: string }[])
+
     const [{ data: f }, { data: t }, { count }] = await Promise.all([flagQ, taskQ, pendingQ])
     setFlags((f || []) as unknown as FlagRow[])
     setTasks((t || []) as unknown as TaskRow[])
@@ -57,6 +61,22 @@ export default function AnalyticsPage() {
   const catCounts = useMemo(() => { const map: Record<string, number> = {}; for (const f of flags) { const cat = f.item?.category?.name || 'Other'; map[cat] = (map[cat] || 0) + 1 }; return Object.entries(map).sort((a, b) => b[1] - a[1]) }, [flags])
   const staffCounts = useMemo(() => { const map: Record<string, number> = {}; for (const r of [...flags, ...tasks]) { if (!r.flagged_by) continue; map[r.flagged_by] = (map[r.flagged_by] || 0) + 1 }; return Object.entries(map).sort((a, b) => b[1] - a[1]) }, [flags, tasks])
   const dayCounts = useMemo(() => { const c = [0, 0, 0, 0, 0, 0, 0]; for (const f of flags) c[new Date(f.flagged_at).getDay()]++; return c }, [flags])
+
+  const supplierStats = useMemo(() => {
+    const catSupMap: Record<string, string> = {}
+    for (const c of supplierCats) catSupMap[c.name] = c.supplier_name
+    const map: Record<string, { supplier: string; flags: number; received: number; cats: string[] }> = {}
+    for (const f of flags) {
+      const cat = f.item?.category?.name || ''
+      const sup = catSupMap[cat]
+      if (!sup) continue
+      if (!map[sup]) map[sup] = { supplier: sup, flags: 0, received: 0, cats: [] }
+      map[sup].flags++
+      if (f.status === 'received') map[sup].received++
+      if (!map[sup].cats.includes(cat)) map[sup].cats.push(cat)
+    }
+    return Object.values(map).sort((a, b) => b.flags - a.flags)
+  }, [flags, supplierCats])
 
   const resolvedCount = flags.filter(f => f.status === 'received').length
   const resolutionRate = flags.length > 0 ? Math.round((resolvedCount / flags.length) * 100) : null
@@ -111,6 +131,28 @@ export default function AnalyticsPage() {
             {catCounts.length > 1 && <section><SectionLabel>By Category</SectionLabel><div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>{catCounts.map(([cat, count], i) => <div key={cat} className="flex items-center gap-3 px-4 py-3" style={{ borderTop: i > 0 ? '1px solid var(--cream-dark)' : undefined }}><span className="flex-1 text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}>{cat}</span><div style={{ width: '72px', height: '3px', background: 'var(--cream-dark)', borderRadius: '2px' }}><div style={{ width: `${Math.round((count / maxCat) * 100)}%`, height: '100%', background: 'var(--gold)', borderRadius: '2px' }} /></div><span className="text-xs" style={{ color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', minWidth: '20px', textAlign: 'right' }}>{count}</span></div>)}</div></section>}
 
             {flags.length >= 3 && <section><SectionLabel>When Things Run Low</SectionLabel><div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', padding: '1.25rem 1rem 1rem' }}><div className="flex items-end justify-between gap-1">{DAYS.map((day, i) => { const isPeak = dayCounts[i] === maxDay && dayCounts[i] > 0; return <div key={day} className="flex-1 flex flex-col items-center gap-1.5"><div style={{ height: '52px', display: 'flex', alignItems: 'flex-end', width: '100%' }}><div style={{ width: '100%', height: dayCounts[i] > 0 ? `${Math.max(5, Math.round((dayCounts[i] / maxDay) * 52))}px` : '4px', background: isPeak ? 'var(--wine)' : dayCounts[i] > 0 ? 'var(--cream-dark)' : 'rgba(0,0,0,0.04)', borderRadius: '2px' }} /></div><span style={{ fontSize: '0.58rem', color: isPeak ? 'var(--wine)' : 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>{day}</span>{dayCounts[i] > 0 && <span style={{ fontSize: '0.58rem', color: isPeak ? 'var(--wine)' : 'var(--muted)', fontFamily: 'var(--font-dm-sans)' }}>{dayCounts[i]}</span>}</div> })}</div></div></section>}
+
+            {supplierStats.length > 0 && <section><SectionLabel>Supplier Performance</SectionLabel>
+              <div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>
+                {supplierStats.map((s, i) => {
+                  const rate = s.flags > 0 ? Math.round((s.received / s.flags) * 100) : null
+                  return (
+                    <div key={s.supplier} className="flex items-center gap-3 px-4 py-3" style={{ borderTop: i > 0 ? '1px solid var(--cream-dark)' : undefined }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.82rem', color: 'var(--text)' }}>{s.supplier}</p>
+                        <p style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.65rem', color: 'var(--muted)' }}>{s.cats.join(', ')}</p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.82rem', color: 'var(--wine)', fontWeight: 500 }}>{s.flags}×</p>
+                        <p style={{ fontFamily: 'var(--font-dm-sans)', fontSize: '0.65rem', color: rate != null && rate >= 70 ? '#4A7C59' : 'var(--muted)' }}>
+                          {rate != null ? `${rate}% fulfilled` : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>}
 
             {staffCounts.length > 0 && <section><SectionLabel>Team Activity</SectionLabel><div style={{ background: 'white', border: '1px solid var(--cream-dark)', borderRadius: '4px', overflow: 'hidden' }}>{staffCounts.map(([name, count], i) => <div key={name} className="flex items-center gap-3 px-4 py-3" style={{ borderTop: i > 0 ? '1px solid var(--cream-dark)' : undefined }}><span style={{ fontSize: '0.65rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', minWidth: '14px' }}>{i + 1}</span><span className="flex-1 text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--font-dm-sans)' }}>{name}</span><div style={{ width: '60px', height: '3px', background: 'var(--cream-dark)', borderRadius: '2px' }}><div style={{ width: `${Math.round((count / maxStaff) * 100)}%`, height: '100%', background: 'var(--wine)', borderRadius: '2px' }} /></div><span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontFamily: 'var(--font-dm-sans)', minWidth: '24px', textAlign: 'right' }}>{count}</span></div>)}</div></section>}
           </>
