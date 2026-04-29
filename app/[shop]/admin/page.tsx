@@ -37,6 +37,7 @@ export default function AdminPage() {
   const [parsedCategories, setParsedCategories] = useState<ParsedCategory[]>([])
   const [adding, setAdding] = useState(false)
   const [addSuccess, setAddSuccess] = useState(false)
+  const [addError, setAddError] = useState('')
 
   // Documents state
   const [documents, setDocuments] = useState<ShopDocument[]>([])
@@ -188,6 +189,7 @@ export default function AdminPage() {
   async function addParsedItems() {
     if (!shopId) return
     setAdding(true)
+    setAddError('')
 
     const existingCatMap: Record<string, string> = {}
     categories.forEach(c => { existingCatMap[c.name.toLowerCase()] = c.id })
@@ -201,14 +203,16 @@ export default function AdminPage() {
       let catId = existingCatMap[parsedCat.name.toLowerCase()]
       if (!catId) {
         maxOrder++
-        const { data: newCat } = await supabase.from('categories').insert({ shop_id: shopId, name: parsedCat.name, sort_order: maxOrder }).select('id').single()
+        const { data: newCat, error: catErr } = await supabase.from('categories').insert({ shop_id: shopId, name: parsedCat.name, sort_order: maxOrder }).select('id').single()
+        if (catErr) { setAdding(false); setAddError(`Failed to create category "${parsedCat.name}": ${catErr.message}`); return }
         if (newCat) catId = newCat.id
       }
       if (!catId) continue
 
-      await supabase.from('items').insert(
-        selectedItems.map(item => ({ category_id: catId, name: item.name, can_order: item.can_order, can_make: item.can_make, is_weekly: item.is_weekly }))
+      const { error: itemErr } = await supabase.from('items').insert(
+        selectedItems.map(item => ({ category_id: catId, name: item.name, can_order: item.can_order, can_make: item.can_make, is_weekly: item.is_weekly, is_active: true }))
       )
+      if (itemErr) { setAdding(false); setAddError(`Failed to add items for "${parsedCat.name}": ${itemErr.message}`); return }
     }
 
     setAdding(false)
@@ -489,6 +493,11 @@ export default function AdminPage() {
             {addSuccess && (
               <div className="px-4 py-3" style={{ background: 'rgba(107,39,55,0.06)', border: '1px solid rgba(107,39,55,0.15)', borderRadius: '4px' }}>
                 <p className="text-sm" style={{ color: 'var(--wine)', fontFamily: 'var(--font-dm-sans)' }}>✓ Items added to inventory. Switch to the Inventory tab to review.</p>
+              </div>
+            )}
+            {addError && (
+              <div className="px-4 py-3" style={{ background: 'rgba(193,113,79,0.08)', border: '1px solid rgba(193,113,79,0.25)', borderRadius: '4px' }}>
+                <p className="text-sm" style={{ color: 'var(--terra)', fontFamily: 'var(--font-dm-sans)' }}>{addError}</p>
               </div>
             )}
 

@@ -68,11 +68,16 @@ Return ONLY valid JSON, no markdown, no explanation:
     const raw = (message.content[0] as { type: string; text: string }).text.trim()
     const jsonStart = raw.indexOf('{')
     const jsonEnd = raw.lastIndexOf('}')
+    if (jsonStart === -1 || jsonEnd === -1) {
+      console.error('parse-menu: no JSON in response', raw.slice(0, 200))
+      return Response.json({ error: 'AI returned an unexpected response — try again or use a cleaner PDF.' }, { status: 500 })
+    }
     const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1))
 
     return Response.json(parsed)
   } catch (err) {
     console.error('parse-menu error', err)
-    return Response.json({ error: 'Failed to parse menu' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    return Response.json({ error: `Failed to parse menu: ${msg}` }, { status: 500 })
   }
 }
