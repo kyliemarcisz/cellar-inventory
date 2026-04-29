@@ -135,11 +135,11 @@ export default function Home() {
   const graceHeaderRef    = useReveal()
   const graceRef          = useActivate('grace-active', 0.2)
   const rolesHeaderRef    = useReveal()
-  const rolesRef          = useActivate('s')
+  const rolesRef          = useActivate('v')
   const whyHeaderRef      = useReveal()
-  const whyRef            = useActivate('s')
+  const whyRef            = useActivate('v')
   const setupHeaderRef    = useReveal()
-  const setupRef          = useActivate('s')
+  const setupRef          = useActivate('v')
   const storyRef          = useReveal()
   const demoRef           = useReveal()
 
@@ -163,10 +163,10 @@ export default function Home() {
 
         <div className="h-headline" style={{ marginBottom: '2.25rem', textAlign: 'center' }}>
           <h1 className="font-serif" style={{ fontSize: 'clamp(2.8rem, 9vw, 5rem)', fontWeight: 300, lineHeight: 1.15, color: '#3B2A1A', maxWidth: '720px', margin: '0 auto' }}>
-            Your restaurant knows
+            Run the floor.
           </h1>
           <h1 className="font-serif" style={{ fontSize: 'clamp(2.8rem, 9vw, 5rem)', fontWeight: 300, fontStyle: 'italic', lineHeight: 1.15, color: '#3B2A1A', maxWidth: '720px', margin: '0 auto' }}>
-            more than you think.
+            Corner&rsquo;s got the back.
           </h1>
         </div>
 
